@@ -56,6 +56,7 @@ _Note: The command `convert-base-v1` has a version number on the end, because it
 <!-- TOC -->
 
 - [Limitations](#limitations)
+- [Input bases](#input-bases)
 - [Output bases](#output-bases)
 - [Example output](#example-output)
 - [Document history](#document-history)
@@ -65,13 +66,23 @@ _Note: The command `convert-base-v1` has a version number on the end, because it
 
 ## Limitations
 
-Currently, two-way conversion is only possible up to base-36.
-
-In other words, you can convert any base from base-2 up to base-36, to any other output base larger or smaller.
+Currently, two-way conversion is only possible with a subset of _input_ bases from base-2, up to base-36.
 
 But beyond base-36 (e.g. base-64, base-256, etc.), it's a one-way function - you can only get bases larger than 36, as output. Which sort of acts like a one-way hash function - which can be very useful, but is something you need to be aware of it.
 
-While this script will be supported indefinitely into the future (as it's used in production evnironments), it's unlikely to ever support bases >36 as input. That is for a planned `-v2` binary executable.
+While this script will be supported indefinitely into the future (as it's used in production evnironments), it's unlikely to ever be a universal "any base in, any base out" utility. That is specifically planned for a `-v2` binary executable. (But that doesn't mean it's not highly useful as-is.)
+
+## Input bases
+
+You can convert a value in one of these input numeric bases, to any other base in "Output bases", larger or smaller.
+
+| Base        | Description                                                 | Characters
+|:---         |:---                                                         |:---
+| 2           | aka Binary                                                  | 0,1
+| 8           | aka Octal                                                   | 0-7
+| 10          | aka Decimal [default]                                       | 0-9
+| 16          | aka Hexedecimal                                             | 0-9, A-F
+| 36          | Just alphanum                                               | 0-9, A-Z
 
 ## Output bases
 
@@ -81,24 +92,24 @@ While this script will be supported indefinitely into the future (as it's used i
 | 8           | aka Octal                                                   | 0-7
 | 10          | aka Decimal [default]                                       | 0-9
 | 16          | aka Hexedecimal                                             | 0-9, A-F
+| 26          | One-case alphabetic                                         | A-Z
 | 32[r]       | RFC 4648                                                    | A-Z, 2-7                          | https://en.wikipedia.org/wiki/Base32
 | 32h         | RFC 4648 §7, 'Base32Hex'                                    | 0-9, A-V                          | https://datatracker.ietf.org/doc/html/rfc4648#section-7
 | 32w         | Wordsafe Base32                                             | 2-9, CFGHJMPQRVWX, cfghjmpqrvwx   | https://en.wikipedia.org/wiki/Base32#Word-safe_alphabet
+| 32c         | Crockford's Base32                                          | 0-9, A-Z no I, L, O, U            | https://en.wikipedia.org/wiki/Base32#Crockford's_Base32
 | 36          | Just alphanum                                               | 0-9, A-Z                          | https://en.wikipedia.org/wiki/Base36
+| 38username  | Valid *nix username characters
+| 38hostname  | Valid *nix host and domain name characters
+| 48j1        | 0-9, cfghjmpqrvwx, and lots of unicode symbols
+| 52          | Both-case alphabetic                                        | A-Z, a-z
 | 62          | All alphanum                                                | 0-9, A-Z, a-z                     | https://en.wikipedia.org/wiki/Base62
 | 64[r]       | RFC 4648                                                    | 0-9, A-Z, a-z, +, /               | https://en.wikipedia.org/wiki/Base64
 | 64u         | RFC 4648 §5; URL-safe                                       | 0-9, A-Z, a-z, -, _               | https://en.wikipedia.org/wiki/Base64#Variants_summary_table
-| 26          | One-case alphabetic                                         | A-Z
-| 32c         | Crockford's Base32                                          | 0-9, A-Z no I, L, O, U            | https://en.wikipedia.org/wiki/Base32#Crockford's_Base32
-| 52          | Both-case alphabetic                                        | A-Z, a-z
 | 64j1u       | Alternate to 64u but also programmer-friendly               | 0-9, A-Z, a-z, ʞ, λ
-| 48j1        | 0-9, cfghjmpqrvwx, and lots of unicode symbols
 | 64j1uw      | Like 48j1 but with upper-case alpha too
 | 128[j1]     | Like 64j1u but with way more unicode symbols
 | 256[j1]     | Base 62 (all alphanum), and lots of unicode chars
 | 288[j1]     | 256j1 with 32 more unicode chars
-| 38username  | Valid *nix username characters
-| 38hostname  | Valid *nix host and domain name characters
 <!--
 | 94[ascii]   | All lower ASCII chars + space (all typable US keyboard)
 -->
