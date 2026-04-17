@@ -18,6 +18,7 @@
 ##		- 20230830 JC: Created from x9bsnaps as template.
 ##		- 20230901-0920 JC: Added bases and polished 'j1' character sets.
 ##		- 20230924 JC: Bug fix, inability to --lcase base 26.
+##		- 20260411 JC: Removed base94ascii. There is some bug that puts filenames on the filesystem into the output. But it's not an important base to include.
 ##	Notes:
 ##		- See bottom of file for examples of numbers in various bases, and the space-saving percentages.
 ##		- THIS IS VERSION MANAGED ON GITHUB.
@@ -27,8 +28,8 @@
 declare -i    doDebug=0
 declare -i    runAsSudo=0
 declare -i    doQuietly=0; [[ "${X9CONVERTBASE1_QUIET}" == "1" ]] && doQuietly=1
-declare       thisVersion="1.0.1"
-declare       copyrightYear="2023"
+declare       thisVersion="1.1.0"
+declare       copyrightYear="2023-2026"
 declare       author="Jim Collier"
 
 
@@ -88,7 +89,7 @@ fPrint_Syntax(){ _fdbgEnter "${FUNCNAME[0]}";
 		fEcho_Clean "    Special-purpose bases [not very useful for output-only bases]:"
 		fEcho_Clean "      38username: Valid *nix username characters"
 		fEcho_Clean "      38hostname: Valid *nix host and domain name characters"
-		fEcho_Clean "      94[ascii] : All lower ASCII chars+space; all typable US keyboard keys"
+#		fEcho_Clean "      94[ascii] : All lower ASCII chars+space; all typable US keyboard keys"
 		fEcho_Clean "  Valid values for --ibase:"
 		fEcho_Clean "    2, 8, 10, 16, 36"  ## Note: You might think that base32/base64 might work, but those must be values at 32 or 64-bit boundaries. Maybe they could be padded in a future update?
 		fEcho_Clean "Notes:"
@@ -158,7 +159,7 @@ fMain(){ _fdbgEnter "${FUNCNAME[0]}";
 	local -ra base288j1=(0 1 2 3 4 5 6 7 8 9 A B C D E F G H I J K L M N O P Q R S T U V W X Y Z a b c d e f g h i j k l m n o p q r s t u v w x y z ʞ λ μ ᛎ ᛏ ᛘ ᛯ ᛝ ᛦ ᛨ ᚠ ᚧ ᚬ ᚼ 🜣 🜥 🜿 🝅 ▵ ▸ ▿ ◂ ҂ ‡ ± ⁑ ÷ ∞ ≈ ≠ Ω Ʊ Ξ ψ Ϡ δ ϟ Ћ Ж Я Ѣ ф ¢ £ ¥ § ¿ ɤ ʬ ⍤ ⍩ ⌲ ⍋ ⍒ ⍢ Â Ĉ Ê Ĝ Ĥ Î Ĵ Ô Ŝ Û Ŵ Ŷ Ẑ â ĉ ê ĝ ĥ î ĵ ô ŝ û ŵ ŷ ẑ Ã Ẽ Ĩ Ñ Õ Ũ Ỹ ã ẽ ĩ ñ õ ũ ỹ Ä Ë Ï Ö Ü Ẅ Ẍ Ÿ ä ë ï ö ü ẅ ẍ ÿ Á Ć É Ǵ Í Ń Ó Ŕ Ś Ú Ẃ Ý Ź á ć é ǵ í ń ó ŕ ś ú ẃ ý ź Ā Ē Ī Ō Ū Ȳ ā ē ī ō ū ȳ Ǎ Č Ď Ě Ǧ Ȟ Ǩ Ň Ǒ Ř Š Ǔ ǎ č ď ě ǧ ȟ ǩ ň ǒ ř š ǔ ǝ ɹ ʇ ʌ ₸ ᛬ 웃 유 ㅈ ㅊ ㅍ ㅎ ㅱ ㅸ ㅠ ソ ッ ゞ ぅ ぇ ォ ゲ サ じ す ス せ ち づ で ネ ビ べ ぺ ま モ ゟ ヲ ½ ⅓ ⅔ ¼ ¾ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞)
 
 	## Custom; Special: ^[a-z_]([a-z0-9_-]){0,31}$; linux hostname (including domain - not case-sensitive, usually lower-case, and this is just the legal chars): [0-9a-z\-\.]
-	declare -a base94ascii=(" "); declare -a tmpArray=($(echo "! \" # \$ % & ' ( ) * + , - . /" {0..9} ": ; < = > ? @" {A..Z} "[ \ ] ^ _ \`" {a..z} "{ | } ~")); base94ascii+=("${tmpArray[@]}"); local -ra base94ascii=("${base94ascii[@]}")  ## Space is a valid character in the array element, which is trickier to include in one go, thus this gymnastics.
+#	declare -a base94ascii=(" "); declare -a tmpArray=($(echo "! \" # \$ % & ' ( ) * + , - . /" {0..9} ": ; < = > ? @" {A..Z} "[ \ ] ^ _ \`" {a..z} "{ | } ~")); base94ascii+=("${tmpArray[@]}"); local -ra base94ascii=("${base94ascii[@]}")  ## Space is a valid character in the array element, which is trickier to include in one go, thus this gymnastics.
 	declare -a base38username=($(echo {0..9} {a..z} "- _"))
 	declare -a base38hostname=($(echo {0..9} {a..z} "- ."))
 
@@ -290,7 +291,7 @@ fMain(){ _fdbgEnter "${FUNCNAME[0]}";
 	## Convert ${inputVal} to base10 if necessary
 	local inputVal_base10=0
 	case "${inBase}" in
-		"2"|"8"|"16"|"36")
+		"2"|"8"|"16"|"26"|"36")
 			## As we've already validated, bc can only go up to base 36.
 			inputVal_base10="$(bc <<< "ibase=${inBase}; ${inputVal}")"
 			inBase="10"
@@ -345,7 +346,7 @@ fMain(){ _fdbgEnter "${FUNCNAME[0]}";
 		"64u"*)         local -ar baseValArray=("${base64u[@]}")         ;;
 		"64j1u")        local -ar baseValArray=("${base64j1u[@]}")       ;;
 		"64j1uw")       local -ar baseValArray=("${base64j1uw[@]}")      ;;
-		"94"|"94as"*)   local -ar baseValArray=("${base94ascii[@]}")     ;;
+#		"94"|"94as"*)   local -ar baseValArray=("${base94ascii[@]}")     ;;
 		"128"|"128j1")  local -ar baseValArray=("${base128j1[@]}")       ;;
 		"256"|"256j1")  local -ar baseValArray=("${base256j1[@]}")       ;;
 		"288"|"288j1")  local -ar baseValArray=("${base288j1[@]}")       ;;
@@ -517,7 +518,8 @@ fValidate(){ _fdbgEnter "${FUNCNAME[0]}";
 	## Validate
 	[[ -z "${inputVal}" ]] && fThrowError "An input value must be specified."  "${FUNCNAME[0]}"
 	[[ -z "${outBase}" ]] && fThrowError "An output base must be specified."  "${FUNCNAME[0]}"
-	[[ -z "$(echo "x ${outBase} x" | grep -iP "x (2|8|10|16|26|32([rhcw].*)?|36|38(us|ho).*|48j1?|52|62|64((r|u|j1u|j1uw).*)?|94(as.*)?|(128|256|288)(j1)?) x" || true)" ]] && fThrowError "Sorry, --obase of '${arg_outBase}' is not supported."  "${FUNCNAME[0]}"
+#	[[ -z "$(echo "x ${outBase} x" | grep -iP "x (2|8|10|16|26|32([rhcw].*)?|36|38(us|ho).*|48j1?|52|62|64((r|u|j1u|j1uw).*)?|94(as.*)?|(128|256|288)(j1)?) x" || true)" ]] && fThrowError "Sorry, --obase of '${arg_outBase}' is not supported."  "${FUNCNAME[0]}"
+	[[ -z "$(echo "x ${outBase} x" | grep -iP "x (2|8|10|16|26|32([rhcw].*)?|36|38(us|ho).*|48j1?|52|62|64((r|u|j1u|j1uw).*)?|(128|256|288)(j1)?) x" || true)" ]] && fThrowError "Sorry, --obase of '${arg_outBase}' is not supported."  "${FUNCNAME[0]}"
 
 
 	## Validate; make sure input characters all exist in input base
@@ -527,6 +529,7 @@ fValidate(){ _fdbgEnter "${FUNCNAME[0]}";
 		"8")   validBaseChars="${b8[*]}"      ;;
 		"10")  validBaseChars="${b10[*]}"     ;;
 		"16")  validBaseChars="${b16[*]}"     ;;
+		"26")  validBaseChars="${base26[*]}"  ;;
 		"36")  validBaseChars="${base36[*]}"  ;;
 		*)     fThrowError "Sorry, --ibase of '${arg_inBase}' is not currently supported."  "${FUNCNAME[0]}" ;;
 	esac
