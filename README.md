@@ -147,7 +147,9 @@ Note that some of the larger bases appear to have longer output - but that's onl
 ## Document history
 
 - 2023-10-09: First version.
-- 2026-04-17: Added more sections. Removed custom base 94ascii. Added example output (already in the script).
+- 2026-04-17:
+	- Added sections: Input base, and Example output.
+	- Removed custom base 94ascii for Output bases (no longer supported).
 
 ## Copyright and license
 
