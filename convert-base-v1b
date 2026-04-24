@@ -64,19 +64,19 @@ fPrint_Syntax(){
 	fEcho_Clean "        8 ....: aka Octal .................. 0-7"
 	fEcho_Clean "       10 ....: aka Decimal [default] ...... 0-9"
 	fEcho_Clean "       16 ....: aka Hexedecimal ............ 0-9, A-F"
-	fEcho_Clean "       32[h] .: RFC 4648 §7, 'Base32Hex' ... 0-9, A-V" #.......................... https://datatracker.ietf.org/doc/html/rfc4648#section-7
-	fEcho_Clean "       32r ...: RFC 4648 §6 ................ A-Z, 2-7" #.......................... https://en.wikipedia.org/wiki/Base32
+	fEcho_Clean "       32[r] .: RFC 4648 §6 ................ A-Z, 2-7" #.......................... https://en.wikipedia.org/wiki/Base32
+	fEcho_Clean "       32h ...: RFC 4648 §7, 'Base32Hex' ... 0-9, A-V" #.......................... https://datatracker.ietf.org/doc/html/rfc4648#section-7
 	fEcho_Clean "       32w ...: Wordsafe Base32 ............ 2-9, CFGHJMPQRVWX, cfghjmpqrvwx" #... https://en.wikipedia.org/wiki/Base32#Word-safe_alphabet
 	fEcho_Clean "       36 ....: Just alphanum .............. 0-9, A-Z" #.......................... https://en.wikipedia.org/wiki/Base36
 	fEcho_Clean "       62 ....: All alphanum ............... 0-9, A-Z, a-z" #..................... https://en.wikipedia.org/wiki/Base62
-	fEcho_Clean "       64r....: RFC 4648 §4 ................ A-Z, a-z, 0-9, +, /" #............... https://en.wikipedia.org/wiki/Base64
+	fEcho_Clean "       64[r] .: RFC 4648 §4 ................ A-Z, a-z, 0-9, +, /" #............... https://en.wikipedia.org/wiki/Base64
 	fEcho_Clean "       64u ...: RFC 4648 §5, URL-safe ...... A-Z, a-z, 0-9, -, _" #............... https://en.wikipedia.org/wiki/Base64#Variants_summary_table
 	fEcho_Clean "    De-facto standards:"
 	fEcho_Clean "       26 ....: One-case alphabetic ........ A-Z"
 	fEcho_Clean "       32c ...: Crockford's Base32 ......... 0-9, A-Z no I, L, O, U" #............ https://en.wikipedia.org/wiki/Base32#Crockford's_Base32
 	fEcho_Clean "       52 ....: Both-case alphabetic ....... A-Z, a-z"
 	fEcho_Clean "    Very slightly custom:"
-	fEcho_Clean "       64[h] .: Hex like, URL-safe ......... 0-9, A-Z, a-z, -, _" #............... https://en.wikipedia.org/wiki/Base64#Variants_summary_table
+	fEcho_Clean "       64h ...: Hex like, URL-safe ......... 0-9, A-Z, a-z, -, _" #............... https://en.wikipedia.org/wiki/Base64#Variants_summary_table
 	fEcho_Clean "    Custom word-safe, URL-safe, filesystem-safe, programmer-friendly:"
 	fEcho_Clean "       48j1w .: Base 32w + unicode symbols"
 	fEcho_Clean "       64j1w .: Base 48j1w + more unicode symbols"
@@ -93,7 +93,8 @@ fPrint_Syntax(){
 	fEcho_Clean "    v1 backwards-compatiable 'incongruous' wordsafe bases:"
 	fEcho_Clean "      48v1compat, 64v1compat, 128v1compat"
 	fEcho_Clean "  Valid values for --ibase:"
-	fEcho_Clean "    2, 8, 10, 16, 36"  ## Note: You might think that base32/base64 might work, but those must be values at 32 or 64-bit boundaries. Maybe they could be padded in a future update?
+#	fEcho_Clean "    2, 8, 10, 16, 36"  ## Note: You might think that base32/base64 might work. But they don't. Also, fuzz-testing revealed that `bc` can't do base-26.
+#	fEcho_Clean "    2, 8, 10, 16, 26, 36"  ## Note: You might think that base32/base64 might work. But they don't.
 #	fEcho_Clean "Notes:"
 #	fEcho_Clean "  ▸ Base 32 and 64 are often used for streaming binary-to-text encoding/de-"
 #	fEcho_Clean "    coding, but there's no reason you can't use them for positional notation."
@@ -219,7 +220,8 @@ fMain(){
 	## Convert ${inputVal} to base10 if necessary
 	local inputVal_base10=0
 	case "${inBase}" in
-		"2"|"8"|"16"|"26"|"36")
+	#	"2"|"8"|"16"|"26"|"36")  ## Base 26 doesn't actually work
+		"2"|"8"|"16"|"36")
 			## As we've already validated, bc can only go up to base 36.
 			inputVal_base10="$(bc <<< "ibase=${inBase}; ${inputVal}")"
 			inBase="10"
@@ -440,9 +442,9 @@ fValidate(){
 	case "${inBase}" in
 		"2")   validBaseChars="${base2[*]}"   ;;
 		"8")   validBaseChars="${base8[*]}"   ;;
-		"10")  validBaseChars="${base10[*]}"     ;;
-		"16")  validBaseChars="${base16[*]}"     ;;
-		"26")  validBaseChars="${base26[*]}"  ;;
+		"10")  validBaseChars="${base10[*]}"  ;;
+		"16")  validBaseChars="${base16[*]}"  ;;
+	#	"26")  validBaseChars="${base26[*]}"  ;;  ## Fuzz-testing revealed that `bc` can't do base-26.
 		"36")  validBaseChars="${base36[*]}"  ;;
 		*)     fThrowError "Sorry, --ibase of '${arg_inBase}' is not currently supported."  "${FUNCNAME[0]}" ;;
 	esac
@@ -579,8 +581,8 @@ fThrowError(){
 		errMsg="${meName}.$2(): ${errMsg}"
 	fi
 	fEcho_Clean
-	fEcho_Clean "${errMsg}"
-	fEcho_Clean
+	echo "${errMsg}" 1>&2
+	fEcho_Clean_Force
 	exit 1 ; }
 function _fTrap_Exit(){
 	[[ "${_wasCleanupRun}" != "0" ]] && return
@@ -681,3 +683,4 @@ fMain "${1}" "${2}" "${3}" "${4}" "${5}" "${6}" "${7}" "${8}" "${9}" "${10}" "${
 ##		- 20260423 JC: Breaking changes with v1 necessitated v1b. (v2 is already underway and even more different.)
 ##			- Redefined custom "word-safe" bases to be consistent with the published "32w" from Google, rather than halfway-consistent.
 ##			- Can no longer refer to bases by number alone, that aren't well-defined standards (e.g. 128).
+##		- 20260424 JC: Removed base-26. Fuzz-testing revealed that `bc` can't do base-26.
