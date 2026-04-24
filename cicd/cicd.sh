@@ -30,12 +30,13 @@
 ## Constants
 if [[ -z "${doQuietly+x}" ]]; then
 
-	## Settings
-	declare    dirPath_Source=".." #....................................................: Relative paths will be resolved later.
-	declare    filePath_ExecToTestAndInstall="../convert-base-v1b" #....................: Relative paths will be resolved later.
-	declare    filePath_TestExec="../cicd/test.sh" #....................................: Relative paths will be resolved later.
-	declare    gitAutomationScript="../utility/n8git_backup-and-publish" #..............: Relative paths will be resolved later.
+	## Settings (relative paths defined here will be verified and resolved later)
+	declare    dirPath_Source=".."
+	declare    filePath_ExecToTestAndInstall="../convert-base-v1b"
+	declare    filePath_TestExec="../cicd/test.sh"
+	declare    gitAutomationScript="../utility/n8git_backup-and-publish"
 	declare -a preferredInstallPaths=("${HOME}/synced/0-0/common/exec/util/linux/bin"  "/usr/local/sbin/")  ## First one that exists, wins
+	declare -i isCompileProject=1  ## 1: E.g. C++, Rust, Go, etc.  0: E.g. Python, Bash, etc.
 
 	## Generic constants
 	declare  -i doQuietly=0
@@ -63,9 +64,13 @@ fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "CI/CD and dogfood:"
+	if ((isCompileProject)); then
+		fEcho_Clean "  • Builds the program. If successful:"
+		fEcho_Clean "  • Cross-compile more versions. If those succeed:"
+	fi
 	fEcho_Clean "  • Run automated tests. If tests pass:"
-	fEcho_Clean "    • Update locally-installed version."
-	fEcho_Clean "    • Run git automation script (e.g. commit and push)."
+	fEcho_Clean "  • Update locally-installed version to what was just compiled for dogfood."
+	fEcho_Clean "  • Run git automation script (e.g. commit and push)."
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "" ;:;}
 fSyntax(){  { ((doQuietly)) || ((wasShown_Syntax)); } && return; wasShown_Syntax=1;
@@ -110,15 +115,14 @@ fMain(){
 	fParseArgs  "${1:-}" "${2:-}" "${3:-}" "${4:-}" "${5:-}" "${6:-}" "${7:-}" "${8:-}" "${9:-}" "${10:-}" "${11:-}" "${12:-}" "${13:-}" "${14:-}" "${15:-}" "${16:-}" "${17:-}" "${18:-}" "${19:-}" "${20:-}" "${21:-}" "${22:-}" "${23:-}" "${24:-}" "${25:-}" "${26:-}" "${27:-}" "${28:-}" "${29:-}" "${30:-}" "${31:-}" "${32:-}"
 	readonly allArgsArr
 
-	## Paths
-	local -r dirPath_me="$(dirname "${mePath}")"
+	## Resolve paths
 	fResolvePath  dirPath_Source                 "${dirPath_Source}"                 ; readonly dirPath_Source
 	fResolvePath  filePath_ExecToTestAndInstall  "${filePath_ExecToTestAndInstall}"  ; readonly filePath_ExecToTestAndInstall
 	fResolvePath  filePath_TestExec              "${filePath_TestExec}"              ; readonly filePath_TestExec
 	fResolvePath  gitAutomationScript            "${gitAutomationScript}"            ; readonly gitAutomationScript
 
 	## Validate
-	[[ -d "${dirPath_me}"           ]]  ||  fThrowError "Path not found: '${dirPath_me}'"
+	[[ -d "${meDir}"                ]]  ||  fThrowError "Path not found: '${meDir}'"
 	[[ -d "${dirPath_Source}"       ]]  ||  fThrowError "Path not found: '${dirPath_Source}'"
 	[[ -f "${filePath_TestExec}"    ]]  ||  fThrowError "File not found: '${filePath_TestExec}'"
 	[[ -f "${filePath_TestExec}"    ]]  ||  fThrowError "File not found: '${filePath_TestExec}'"
@@ -129,7 +133,9 @@ fMain(){
 		fCopyright
 		fAbout
 		fEcho_Clean "Source directory .............: ${dirPath_Source}"
-#		fEcho_Clean "Executable to build etc. .....: ${filePath_ExecToTestAndInstall}"
+		if ((isCompileProject)); then
+		fEcho_Clean "Executable to build etc. .....: ${filePath_ExecToTestAndInstall}"
+		fi
 		fEcho_Clean "Test script ..................: ${filePath_TestExec}"
 		fEcho_Clean "Git commit and push script ...: ${gitAutomationScript}"
 		fIntroPromptToContinue  ""
@@ -140,8 +146,32 @@ fMain(){
 	#### MAKEITSO
 	####
 
-	cd "${dirPath_me}/.."
+	cd "${meDir}/.."
 	pushd "${dirPath_Source}" 1>/dev/null
+
+	if ((isCompileProject)); then
+
+		## make
+		fEcho "$(date "+%Y%m%d-%H%M%S") make: Starting ..."
+		make
+		fEcho "$(date "+%Y%m%d-%H%M%S") Minimal execution test ..."
+		"${filePath_ExecToTestAndInstall}"  --version
+		sleep 1  ## Long enough to see version
+
+		## Hide single exe
+		[[ -f "${filePath_ExecToTestAndInstall}_staged" ]]  &&  trash "${filePath_ExecToTestAndInstall}_staged"
+		mv "${filePath_ExecToTestAndInstall}"  "${filePath_ExecToTestAndInstall}_staged"
+
+		## Make release (part of testing - if they don't cross-compile then there' a problem)
+		fEcho
+		fEcho "$(date "+%Y%m%d-%H%M%S") make release: Starting ..."
+		make release
+		fEcho_ResetBlankCounter
+
+		##Unhide single executable for testing and local installation
+		mv "${filePath_ExecToTestAndInstall}_staged"  "${filePath_ExecToTestAndInstall}"
+
+	fi
 
 	## Test
 	fEcho "$(date "+%Y%m%d-%H%M%S") Test: Starting ..."
@@ -526,6 +556,7 @@ if [[ -z "${serialDT+x}"     ]]; then
 	declare -r serialDT="$(date "+%Y%m%d-%H%M%S")"
 	declare -r mePath="$(realpath -e "${BASH_SOURCE[0]}")"
 	declare -r meName="$(basename "${mePath}")"
+	declare -r meDir="$(dirname "${mePath}")"
 	declare -r relaunch_Key_sudo="${meName}_relaunch_sudo_4KQDYluNbzLQHwMwsWxgdk"  ## This isn't for 'security' or uniqueness. It just needs to be an exceptionally unlikely user argument.
 fi
 

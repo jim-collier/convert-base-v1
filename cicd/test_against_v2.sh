@@ -17,7 +17,10 @@
 # shellcheck disable=2317  ## Can't reach
 
 
-##	Purpose: CI/CD-friendly test harness that passes or fails.
+##	Purpose:
+##		- CI/CD-friendly test harness that passes or fails.
+##		- Tests random output and round-trips through v2 to make sure the initial output was correct (at least if v2 is also correct).
+##		- This is NOT part of cicd script, as it's not a requirement to have v2 installed.
 ##	History: At bottom of this file. (Note: History for this is maintained outside of [or in addition to] git project.)
 
 ##	Copyright
@@ -62,65 +65,11 @@ fMain(){
 
 
 	####
-	#### Test all base names
-	####
-
-	inputVal="987654321000055555555550000123456789"
-	fTestAllAliases  "base10"  "${inputVal}"
-	fRunTest  'error'  "${expectVal}"  "'${exePath}'  '${inputVal}'  bogusBaseName"
-
-
-	####
 	#### Looped quazi-random fuzz-testing
 	####
 
 	loopCount=100
 	fFuzzTest_BaseToBaseAndBack
-
-
-	## Test val to use for next few sections
-	inputVal="00012345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
-
-	####
-	#### By-hand one-way tests, expect equal
-	####
-
-	## 128v1compat
-	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
-	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128v1compat"
-
-	## 128j1
-	#expectVal="$(convert-base-v2  "${inputVal}"  128jc)"  # ; echo "${expectVal}" | ct
-	expectVal="⍩pT🜿NjqQQ҂ᛏ4҂¥iFᛯÔʞ◂SUĈδ⍤Y1D§±ᛦvRSMᛝ⌲QѢKDlPsЋS÷⍋▿1HNÎB1JSZa▸ᚠC2ф5ᛯ±ŴWλŴĴpdÎa"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
-
-
-	####
-	#### By-hand one-way tests, expect NOT equal
-	####
-
-	## 128j1 != 128v1compat
-	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
-	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '!='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
-
-
-	####
-	#### By-hand one-way tests, expect ERROR
-	####
-
-	## Removed base 16 as input, should error.
-	expectVal=""
-	fRunTest  'error'  "${expectVal}"  "'${exePath}'  --ibase 26  'ABCXYZ'  10"
-
-
-	####
-	#### By-hand round-trips self-tests, expect equal.
-	####
-
-	expectVal="12345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
-	fRunChained_TestLast  '=='  "${expectVal}"  "'${exePath}'  --ibase 10  ${inputVal}  base16 ; '${exePath}'  --ibase 16  %CMD1_OUTPUT%  base10"
 
 :;}
 
@@ -128,10 +77,8 @@ fMain(){
 fFuzzTest_BaseToBaseAndBack(){
 
 	## Settings
-	local -ri count_InputBases=5
-#	local -ri count_OutputBases=28
-	local -ri count_OutputBases=5
-	local -ri count_MaxInputLen=64
+	local -ri count_OutputBases=28
+	local -ri count_MaxInputLen=128
 	local -i  random_InputBase=0
 	local -i  random_OutputBase=0
 	local -i  random_InputLen=0
@@ -335,9 +282,4 @@ fEntryPoint | fPipe_LogAndShowPartialOutput
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ##	Script history:
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-##		- 20260420 JC: Copied for convert-base-v2.
-##		- 20260421 JC: Added polish.
-##		- 20260423 JC: Added fRunChained_TestLast() to be able to test commands that can't be piped.
-##		- 20260424 JC:
-##			- Separated specific test.sh and generic n8test
-##			- Added testing all base names and aliases.
+##		- 20260420 JC: Copied test.sh to test_against_v2.sh.

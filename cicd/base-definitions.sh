@@ -2,6 +2,10 @@
 # shellcheck disable=2034  ## Unused variables.
 # shellcheck disable=2207
 
+## Only allow running 'sourced'.
+declare -i isSourced_t4rfy; { (return 0 2>/dev/null) && isSourced_t4rfy=1; } || isSourced_t4rfy=0
+((! isSourced_t4rfy)) && { echo -e "\nThis script is meant to be 'sourced' from within another script.\n"; exit 1; }
+
 ## Bases
 declare -ar base2=($(echo {0..1}))
 declare -ar base8=($(echo {0..7}))
@@ -44,3 +48,5 @@ declare -ra base288j1=(0 1 2 3 4 5 6 7 8 9 A B C D E F G H I J K L M N O P Q R S
 declare -a base38hostname=($(echo {0..9} {a..z} "- ."))
 declare -a base39username=($(echo {0..9} {a..z} "- _ ."))
 declare -a base45email=($(echo {0..9} {a..z} "- _ % + . : @ [ ]"))
+
+echo "[ Base definitions loaded. ]"

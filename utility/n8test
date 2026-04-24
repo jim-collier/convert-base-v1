@@ -27,181 +27,22 @@
 ##		SPDX-License-Identifier: GPL-2.0-or-later
 
 
-## Settings
-declare -r exePath="$(realpath -e "$(dirname "${0}")/../convert-base-v1b")"
-
-
-fMain(){
-
-	## Variables
-	local inputVal=""  expectVal=""  gotVal=""  tmpVal=""
-	local -i loopCount=0
-
-	## Load base definitions array
-	source "$(dirname "${BASH_SOURCE[0]}")/base-definitions.sh"
-
-	## Will it even load at all
-	fEcho_Clean; fEcho_Clean "${exePath}"
-	"${exePath}" --version ; fEcho_WasLastEchoBlank_Set 1 ; sleep 1
-
-
-	####
-	#### Looped self-comparing runs with random input base, input length, base-appropriate input symbols, and output base
-	####
-
-	loopCount=100
-	fFuzzTest_Self
-
-
-	## Test val to use for next few sections
-	inputVal="00012345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
-
-	####
-	#### By-hand one-way tests, expect equal
-	####
-
-	## 128v1compat
-	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
-	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128v1compat"
-
-	## 128j1
-	#expectVal="$(convert-base-v2  "${inputVal}"  128jc)"  # ; echo "${expectVal}" | ct
-	expectVal="⍩pT🜿NjqQQ҂ᛏ4҂¥iFᛯÔʞ◂SUĈδ⍤Y1D§±ᛦvRSMᛝ⌲QѢKDlPsЋS÷⍋▿1HNÎB1JSZa▸ᚠC2ф5ᛯ±ŴWλŴĴpdÎa"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
-
-
-	####
-	#### By-hand one-way tests, expect NOT equal
-	####
-
-	## 128j1 != 128v1compat
-	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
-	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '!='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
-
-
-	####
-	#### By-hand one-way tests, expect ERROR
-	####
-
-	## Removed base 16 as input, should error.
-	expectVal=""
-	fRunTest  'error'  "${expectVal}"  "'${exePath}'  --ibase 26  'ABCXYZ'  10"
-
-
-	####
-	#### By-hand round-trips self-tests, expect equal.
-	####
-
-	expectVal="12345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
-	fRunChained_TestLast  '=='  "${expectVal}"  "'${exePath}'  --ibase 10  ${inputVal}  base16 ; '${exePath}'  --ibase 16  %CMD1_OUTPUT%  base10"
-
-:;}
-
-
-fFuzzTest_Self(){
-
-	## Settings
-	local -ri count_InputBases=5
-#	local -ri count_OutputBases=28
-	local -ri count_OutputBases=5
-	local -ri count_MaxInputLen=64
-	local -i  random_InputBase=0
-	local -i  random_OutputBase=0
-	local -i  random_InputLen=0
-	local -a  inputBaseArr=()
-	local     inputBase=""
-	local     inputStr=""
-	local     outputBase=""
-
-	for ((i=0; i<loopCount; i++)); do
-
-		## Random input base
-		random_InputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_InputBases))
-		case $random_InputBase in
-			1) inputBase="2"  ; inputBaseArr=("${base2[@]}")   ;;
-			2) inputBase="8"  ; inputBaseArr=("${base8[@]}")   ;;
-			3) inputBase="10" ; inputBaseArr=("${base10[@]}")   ;;
-			4) inputBase="16" ; inputBaseArr=("${base16[@]}")  ;;
-		#	5) inputBase="26" ; inputBaseArr=("${base26[@]}")  ;;  ## Testing revealed that `bc` can't actually do base-26.
-			5) inputBase="36" ; inputBaseArr=("${base36[@]}")  ;;
-		esac
-
-		## Random input length
-		random_InputLen=$((1 + $(od -An -N1 -i /dev/urandom) % count_MaxInputLen))
-
-		## Random input string
-		fScrambleString  inputStr  "$(IFS=; echo "${inputBaseArr[*]}")"   $random_InputLen
-
-		## Random output base
-	#	random_OutputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_OutputBases))
-		random_OutputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_InputBases))
-		case $random_OutputBase in
-			1)    outputBase="2"            ;;
-			2)    outputBase="8"            ;;
-			3)    outputBase="10"           ;;
-			4)    outputBase="16"           ;;
-		#	5)    outputBase="26"           ;;  ## Testing revealed that `bc` can't actually do base-26.
-			5)    outputBase="36"           ;;
-		#	7)    outputBase="32c"          ;;
-		#	8)    outputBase="32h"          ;;
-		#	9)    outputBase="32r"          ;;
-		#	10)   outputBase="32w"          ;;
-		#	11)   outputBase="38hostname"   ;;
-		#	12)   outputBase="39username"   ;;
-		#	13)   outputBase="45email"      ;;
-		#	14)   outputBase="48j1w"        ;;
-		#	15)   outputBase="48v1compat"   ;;
-		#	16)   outputBase="52"           ;;
-		#	17)   outputBase="62"           ;;
-		#	18)   outputBase="64h"          ;;
-		#	19)   outputBase="64j1"         ;;
-		#	20)   outputBase="64j1w"        ;;
-		#	21)   outputBase="64r"          ;;
-		#	22)   outputBase="64u"          ;;
-		#	23)   outputBase="64v1compat"   ;;
-		#	24)   outputBase="128j1"        ;;
-		#	25)   outputBase="128j1w"       ;;
-		#	26)   outputBase="128v1compat"  ;;
-		#	27)   outputBase="256j1"        ;;
-		#	28)   outputBase="288j1"        ;;
-		esac
-
-		## To avoid falsely triggering an error:
-		## Strip off leading symbols representing '0' from input, which will be gone from the output during conversion.
-		shopt -s extglob
-		inputStr="${inputStr##+("${inputBaseArr[0]}")}"
-		[[ -z "${inputStr}" ]]  &&  continue
-		expectVal="${inputStr}"
-
-		## Format and prepare the first command for display, to be shown in output (via variable "hook")
-		local exeName=""  exeArgs=""
-		fGetIsolatedExeName  exeName  exeArgs  "'${exePath}'  --ibase ${inputBase}  '${inputStr}'  ${outputBase}"
-		__fRunTest_EchoHook1="Cmd 1 ..........: '${exeName}'${exeArgs}"
-
-		## Run the first command, to get the intermediate output for the second
-		cmd1Output_cmd2Input="$("${exePath}"  --ibase ${inputBase}  "${inputStr}"  ${outputBase})"
-
-		## Run the second command with the previous command's output as this command's input.
-		## This command's output should be the same as the previous command's input.
-		fRunTest  '=='  "${expectVal}"  "'${exePath}'  --ibase ${outputBase}  ${cmd1Output_cmd2Input}  ${inputBase}"
-
-	done
-
-}
-
-
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 # Generic code
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 fEntryPoint(){
+
+	## Test if fMain exists in calling script
+	declare -F fMain &> /dev/null ||  { echo -e "\nCalling script must have a function named 'fMain()'.\n"; return 1; }
+
 	local -i count_Tests=0
 	local -i count_Passed=0
 	local -i count_Failed=0
+
 	set +e
 		fMain
 	set -e
+
 	fEcho_Clean; fEcho_Clean "Results:"
 	fEcho_Clean "Total tests .........: ${count_Tests}"
 	fEcho_Clean "Passed ..............: ${count_Passed}"
@@ -209,13 +50,15 @@ fEntryPoint(){
 	fEcho_Clean "Expected errors .....: ${count_Errors_Expected}"
 	fEcho_Clean "Unexpected errors ...: ${count_Errors_Unexpected}"
 	fEcho_Clean
-	((count_Failed == 0))  ||  exit 1
+
+	((count_Failed == 0))  ||  return 1
+
 }
 
 declare -i currentPassStreak=0
 declare    __fRunTest_EchoHook1=""
 fRunTest(){
-	local -r  testMode="${1:-}"   ; shift || true   ## 'equal', 'notequal', 'error'.
+	local -r  testMode="${1:-}"   ; shift || true   ## 'equal', 'notequal', 'error', 'noerror'.  The latter two do no comparisons and accept any 'expectVal'.
 	local -r  expectVal="${1:-}"  ; shift || true   ## Inherit from parent instead.
 	local -r  cmdStr="${1:-}"     ; shift || true
 
@@ -257,7 +100,7 @@ fRunTest(){
 	elif ((count_Failed > prevCount_Failed)); then
 		## Action if the test failed
 		currentPassStreak=0
-		fEcho_Clean "❌ FAILED: Test# ${count_Tests} [Test mode: '${testMode}']"
+		fEcho_Clean "⛔ FAILED: Test# ${count_Tests} [Test mode: '${testMode}']"
 	elif ((count_Errors_Unexpected > prevCount_Errors_Unexpected)); then
 		## Action if the test UN-expectedly errored
 		fEcho_Clean "⚠️ Errored unexpectedly: Test# ${count_Tests} [Test mode: '${testMode}']"
@@ -276,7 +119,7 @@ fRunTest(){
 ##
 fRunChained_TestLast(){
 	## Args
-	local -r  testMode="${1:-}"   ; shift || true   ## 'equal', 'notequal', 'error'.
+	local -r  testMode="${1:-}"   ; shift || true   ## 'equal', 'notequal', 'error', 'noerror'.  The latter two do no comparisons and accept any 'expectVal'.
 	local -r  expectVal="${1:-}"  ; shift || true   ## Inherit from parent instead.
 	local -r  cmdStrs="${1:-}"    ; shift || true   ## >=1 commands with ';' as delimiter.
 	## Variables
@@ -308,16 +151,18 @@ fRunChained_TestLast(){
 ##
 ## Shows piped input  terminal but truncated to terminal width. Also logs the whole line to a date/time-stamped file. Handles wide unicode.
 ##
-declare __fPipe_LogAndShowPartialOutput_LogFile=""
+declare    __fPipe_LogAndShowPartialOutput_LogFile=""
+declare -i __fPipe_Log_isInitialized=0
 fPipe_LogAndShowPartialOutput_InitLogfile(){
 	local filePath_Log="${1:-}" ; shift || true  ## If you want to override the logfile path. Otherwise it's the path of this script+basename, + '.log'.
 	[[ -n "${filePath_Log}" ]]  ||  filePath_Log="${BASH_SOURCE[0]%.*}.log"
-	[[ -d "$(dirname "${filePath_Log}")" ]]  ||  { echo -e "\nError in $(basname "${BASH_SOURCE[0]}").${FUNCNAME[0]}(): Directory for logfile not found: '$(dirname "${filePath_Log}")'.\n" ; return 1; }
+	[[ -d "$(dirname "${filePath_Log}")" ]]  ||  { echo -e "\nError in ${meName_t4rge}.${FUNCNAME[0]}(): Directory for logfile not found: '$(dirname "${filePath_Log}")'.\n" ; return 1; }
 	[[ -f "${filePath_Log}.prev" ]] && rm                    "${filePath_Log}.prev"
-#	[[ -f "${filePath_Log}"      ]] && mv "${filePath_Log}"  "${filePath_Log}.prev"
-	[[ -f "${filePath_Log}     " ]] && rm                    "${filePath_Log}"
+	[[ -f "${filePath_Log}"      ]] && rm                    "${filePath_Log}"
 	__fPipe_LogAndShowPartialOutput_LogFile="${filePath_Log}"
+#	echo "__fPipe_LogAndShowPartialOutput_LogFile: '${__fPipe_LogAndShowPartialOutput_LogFile}'"; exit
 	touch "${__fPipe_LogAndShowPartialOutput_LogFile}"
+	__fPipe_Log_isInitialized=1
 }
 fPipe_LogAndShowPartialOutput() {
 	## Coded by Claude Opus 4.7 Adaptive, 20260424-070027.
@@ -335,7 +180,7 @@ fPipe_LogAndShowPartialOutput() {
 		now="$EPOCHREALTIME"
 		secs="${now%.*}"; frac="${now#*.}"; ms="${frac:0:4}"
 		printf -v ts '[%(%Y%m%d-%H%M%S)T.%s]' "$secs" "$ms"
-		printf '%s  %s\n' "$ts" "$line" >> "$__fPipe_LogAndShowPartialOutput_LogFile"
+		((__fPipe_Log_isInitialized))  &&  printf '%s  %s\n' "$ts" "$line" >> "$__fPipe_LogAndShowPartialOutput_LogFile"
 
 		w=0; trunc_idx=-1; len=${#line}
 		for ((i=0; i<len; i++)); do
@@ -359,6 +204,7 @@ fPipe_LogAndShowPartialOutput() {
 	done
 }
 fPipe_LogOnly() {
+	((! __fPipe_Log_isInitialized)) && return
 	## Send stderr to this, e.g. somecmd 2> >(fPipe_LogOnly >&2) | fPipe_LogAndShowPartialOutput
 	## Coded by Claude Opus 4.7 Adaptive, 20260424.
     local LC_ALL=C.UTF-8
@@ -440,16 +286,38 @@ fScrambleString(){
 
 fTallyResult(){
 	local -ri errNum=${1:-0}      ; shift || true  ## The integer return value from the command.
-	local -r  testMode="${1:-}"   ; shift || true  ## 'equal', 'notequal', 'error'.
+	local -r  testMode="${1:-}"   ; shift || true  ## 'equal', 'notequal', 'error', 'noerror'.  The latter two do no comparisons and accept any 'expectVal'.
 	local -r  expectVal="${1:-}"  ; shift || true  ##
 	local -r  gotVal="${1:-}"     ; shift || true  ##
 	case "${testMode,,}" in
 		'eq'*|'pass'|'='|'==')      { [[ "${expectVal}"  ==  "${gotVal}" ]]  &&  ((++count_Passed)); }  ||  ((++count_Failed))   ;;
 		'noteq'*|'fail'|'!='|'<>')  { [[ "${expectVal}"  !=  "${gotVal}" ]]  &&  ((++count_Passed)); }  ||  ((++count_Failed))   ;;
 		'err'*)                     { ((errNum != 0))                        &&  ((++count_Passed)); }  ||  ((++count_Failed))   ;;
+		'no_err'*|'noerr'*)         { ((errNum == 0))                        &&  ((++count_Passed)); }  ||  ((++count_Failed))   ;;
 		*)                          fEcho_Clean "$(basename "${0}").${FUNCNAME[0]}() - Error: Unexpected second argument. Should be 'equal', 'notequal', or 'error'."; return 1  ;;
 	esac
 :;}
+
+fResolvePath_t4rge(){
+	## First looks at specified raw path. Next, same path but relative to this script. Next, in $PATH for an executable. Next, in this script's path, + /lib, /include, then /includes.
+	local -n parentVarName_ResolvedPath_t4rej=${1:-}  ; shift || true  ## Parent variable to store fully resolved path in.
+	local    nameOrPath="${1:-}"                      ; shift || true  ## File or folder path (relative or absolute). If an executable file, can be just a name to search in $PATH, to fully resolve.
+	[[   -z "${nameOrPath}" ]]  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): No path specified to resolve.\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	local -r mePath_t4rge_t4rfg="$(dirname "${BASH_SOURCE[0]}")"
+	local -i isNopathObject=0 ; [[ "${nameOrPath}" == "$(basename "${nameOrPath}")" ]] && isNopathObject=1 ; readonly isNopathObject
+	local    testPath="${nameOrPath}"
+	  [[ ! -e "${testPath}"   ]]                           &&  testPath="${mePath_t4rge_t4rfg}/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="$(which "${nameOrPath}" 2>/dev/null || true)"
+	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rge_t4rfg}/lib/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rge_t4rfg}/include/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rge_t4rfg}/includes/${nameOrPath}"
+	  [[ ! -e "${testPath}"   ]]                           &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔc].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	testPath="$(realpath -e "${testPath}" 2>/dev/null || true)"
+	## Last check to fail on
+	{ [[ -n "${testPath}" ]] && [[ -e "${testPath}" ]]; } || { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔs].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	## Success
+	parentVarName_ResolvedPath_t4rej="${testPath}"
+}
 
 ## Echo-handling
 declare -i _wasLastEchoBlank=0
@@ -485,9 +353,20 @@ trap '{ ((isExpectingError))  &&  ((++count_Errors_Expected)); }  ||  ((++count_
  shopt -s globstar  #..........: ** matches more stuff including recursion.
 
 
-fPipe_LogAndShowPartialOutput_InitLogfile
-fEntryPoint | fPipe_LogAndShowPartialOutput
+## Only allow running 'sourced'.
+declare -i isSourced_t4rhs; { (return 0 2>/dev/null) && isSourced_t4rhs=1; } || isSourced_t4rhs=0
+((! isSourced_t4rhs)) && { echo -e "\nThis script is meant to be 'sourced' from within another script.\n"; exit 1; }
 
+if [[ -z "${meName_t4rge+x}" ]]; then
+	declare -r mePath_t4rge="${BASH_SOURCE[0]}"
+	declare -r meName_t4rge="$(basename "${mePath_t4rge}")"
+	declare -r meDir_t4rge="$(dirname "${mePath_t4rge}")"
+	declare -r serialDT_t4rge="$(date "+%Y%m%d-%H%M%S")"
+fi
+
+## The calling script should do the next two lines, so that the log file goes in the right place without even more convoluted logic:
+#fPipe_LogAndShowPartialOutput_InitLogfile
+#fEntryPoint | fPipe_LogAndShowPartialOutput
 
 
 
@@ -495,3 +374,4 @@ fEntryPoint | fPipe_LogAndShowPartialOutput
 ##		- 20260420 JC: Copied for convert-base-v2.
 ##		- 20260421 JC: Added polish.
 ##		- 20260423 JC: Added fRunChained_TestLast() to be able to test commands that can't be piped.
+##		- 20260424 JC: Made generic.

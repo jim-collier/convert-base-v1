@@ -30,23 +30,32 @@ declare -i    doDebug=0
 declare -i    runAsSudo=0
 declare -i    doQuietly=0; [[ "${X9CONVERTBASE1_QUIET}" == "1" ]] && doQuietly=1
 declare       thisVersion="v1.0.0-beta2"
-declare       copyrightYear="2023-2026"
-declare       author="Jim Collier (ID: 1cv◂‡Vᛦ)"
+declare       thisBuild="1myqhyk"
+declare       thisCopyrightYear="2023-2026"
+declare       thisAuthor="Jim Collier (ID: 1cv◂‡Vᛦ)"
 
 
-fPrint_About(){
-	((doQuietly))  &&  return
+## Version, copyright, about, syntax (minified but not obfuscated)
+fVersion(){ { ((doQuietly)) || ((wasShown_Version)); } && return; wasShown_Version=1;
+	fEcho_Clean "$(basename "${0}") ${thisVersion} build ${thisBuild}" ;:;}
+fCopyright(){ { ((doQuietly)) || ((wasShown_Copyright)); } && return; wasShown_Copyright=1;
 	fEcho_Clean ""
+	fEcho_Clean "$(basename "${0}") ${thisVersion} build ${thisBuild},"
+	fEcho_Clean "Copyright © ${thisCopyrightYear} ${thisAuthor}."
+	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
+	fEcho_Clean "  https://spdx.org/licenses/GPL-2.0-or-later.html"
+	fEcho_Clean "No warranty."
+	fEcho_Clean "" ;:;}
+fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
+	fEcho_Clean ""
+	#           X"-------------------------------------------------------------------------------"X
 	fEcho_Clean "Converts from some bases to a wide variety of others. Strictly positional"
 	fEcho_Clean "notation conversion, not for binary-to-text encoding/decoding. (Though you"
 	fEcho_Clean "can use the same common 2^N encoding bases as positional notation.)"
+	fEcho_Clean "" ;:;}
+fSyntax(){  { ((doQuietly)) || ((wasShown_Syntax)); } && return; wasShown_Syntax=1;
 	fEcho_Clean ""
-}
-
-fPrint_Syntax(){
-	((doQuietly))  &&  return
 	#           X"-------------------------------------------------------------------------------"X
-	fEcho_Clean ""
 	fEcho_Clean "Syntax: ${meName}  [optional args]  <NUMBER>  <OBASE>"
 	fEcho_Clean "  Required arguments (in any order):"
 	fEcho_Clean "    <NUMBER> .........: The value to convert, in form --ibase"
@@ -101,20 +110,12 @@ fPrint_Syntax(){
 #	fEcho_Clean "  ▸ All bases are human-readable/comparable. But not even RFC standard bases >36"
 #	fEcho_Clean "    will machine-sort properly with common sort regimes, eg LC_COLLATE=C.UTF-8."
 	#           X"-------------------------------------------------------------------------------"X
-}
+	fEcho_Clean "" ;:;}
 
-fPrint_Copyright(){
-	((doQuietly))  &&  return
-	fEcho_Clean ""
-	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild},"
-	fEcho_Clean "Copyright © ${thisCopyrightYear} ${thisAuthor}."
-	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
-	fEcho_Clean "  https://spdx.org/licenses/GPL-2.0-or-later.html"
-	fEcho_Clean "There is no warranty, to the extent permitted by law."
-	fEcho_Clean ""
-}
 
 fMain(){
+	## Generic variables
+	local -i wasShown_Version=0; wasShown_Copyright=0; local -i wasShown_About=0; wasShown_Syntax=0
 
 	## Pre-validation
 	_fMustBeInPath basename
@@ -270,7 +271,7 @@ fMain(){
 		"38ho"*)                 local -ar baseValArray=("${base38hostname[@]}")  ;;
 		"39us"*)                 local -ar baseValArray=("${base39username[@]}")  ;;
 		"45em"*)                 local -ar baseValArray=("${base45email[@]}")     ;;
-		"48j1w"|"48jcws")        local -ar baseValArray=("${base48j1w[@]}")       ;;
+		"48j1w"|"48jcw"*)        local -ar baseValArray=("${base48j1w[@]}")       ;;
 		"52")                    local -ar baseValArray=("${base52[@]}")          ;;
 		"62")                    local -ar baseValArray=("${base62[@]}")          ;;
 		"64"|"64r"*)             local -ar baseValArray=("${base64r[@]}")         ;;
@@ -328,10 +329,13 @@ fInit(){
 	## Positional variables set (to not rely on detecting empty strings, which may themselves be valid settings)
 	local -i argIsSet_InputVal=0
 
+	## Generic variables
+	local -i wasShown_Version=0; wasShown_Copyright=0; wasShown_About=0; wasShown_Syntax=0
+
 	## Determine if we need to show help
 	case " ${_allArgs,,} " in
 		*" -h "*|*" --help "*)                 fPrint_Copyright ; fPrint_About ; fPrint_Syntax ; exit 0 ;;
-		*" -v "*|*" --ver "*|*" --version "*)  fPrint_Copyright ; fPrint_About                 ; exit 0 ;;
+		*" -v "*|*" --ver "*|*" --version "*)  fVersion                                        ; exit 0 ;;
 	esac
 	if [[ -z "$(_fStrTrim_byecho "${_allArgs}")" ]]; then fPrint_Copyright; fPrint_About; fPrint_Syntax; exit 1; fi
 
@@ -434,7 +438,7 @@ fValidate(){
 	## Validate
 	[[ -z "${inputVal}" ]] && fThrowError "An input value must be specified."  "${FUNCNAME[0]}"
 	[[ -z "${outBase}" ]] && fThrowError "An output base must be specified."  "${FUNCNAME[0]}"
-	[[ -z "$(echo "x ${outBase} x" | grep -iP "x (2|8|10|16|26|32(c|h|r|w)?.*|36|38ho.*|39us.*|45em.*|(48|64|128)(j1w|jcws)|52|62|64(h|r|u)?.*|64j1u|(64|128|256|288)(j1|jc)|(48|64|128)v1compat) x" || true)" ]] && fThrowError "Sorry, --obase of '${arg_outBase}' is not supported."  "${FUNCNAME[0]}"
+	[[ -z "$(echo "x ${outBase} x" | grep -iP "x (2|8|10|16|26|32(c|h|r|w)?.*|36|38ho.*|39us.*|45em.*|(48|64|128)(j1w|jcw.*)|52|62|64(h|r|u)?.*|64j1u|(64|128|256|288)(j1|jc)|(48|64|128)v1compat) x" || true)" ]] && fThrowError "Sorry, --obase of '${arg_outBase}' is not supported."  "${FUNCNAME[0]}"
 
 
 	## Validate; make sure input characters all exist in input base
@@ -641,6 +645,11 @@ declare    meName="$(basename "${BASH_SOURCE[0]}")"
 
 ## Main entry point
 fMain "${1}" "${2}" "${3}" "${4}" "${5}" "${6}" "${7}" "${8}" "${9}" "${10}" "${11}" "${12}" "${13}" "${14}" "${15}" "${16}" "${17}" "${18}" "${19}" "${20}" "${21}" "${22}" "${23}" "${24}" "${25}" "${26}" "${27}" "${28}" "${29}" "${30}" "${31}" "${32}"
+
+
+##	EXAMPLE: A big random base 10 number '987654321000055555555550000123456789' in various bases:
+##	                      Reduction
+##	   Base         Chars  Inc Orig  Number
 
 
 ##	EXAMPLE: A big random base 10 number '2023090613425900000000000000001' in various bases:
