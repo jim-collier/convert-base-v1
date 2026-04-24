@@ -31,12 +31,13 @@
 if [[ -z "${doQuietly+x}" ]]; then
 
 	## Settings (relative paths defined here will be verified and resolved later)
-	declare    dirPath_Source=".."
-	declare    filePath_ExecToTestAndInstall="../convert-base-v1b"
-	declare    filePath_TestExec="../cicd/test.sh"
-	declare    gitAutomationScript="../utility/n8git_backup-and-publish"
+	declare    dirPath_Base="$(dirname "${BASH_SOURCE[0]}")/.."
+	declare    dirPath_Source="${dirPath_Base}"
+	declare    filePath_ExecToTestAndInstall="${dirPath_Base}/convert-base-v1b"
+	declare    filePath_TestExec="${dirPath_Base}/cicd/test.sh"
+	declare    gitAutomationScript="${dirPath_Base}/utility/n8git_backup-and-publish"
 	declare -a preferredInstallPaths=("${HOME}/synced/0-0/common/exec/util/linux/bin"  "/usr/local/sbin/")  ## First one that exists, wins
-	declare -i isCompileProject=1  ## 1: E.g. C++, Rust, Go, etc.  0: E.g. Python, Bash, etc.
+	declare -i isCompileProject=0  ## 1: E.g. C++, Rust, Go, etc.  0: E.g. Python, Bash, etc.
 
 	## Generic constants
 	declare  -i doQuietly=0
@@ -116,13 +117,23 @@ fMain(){
 	readonly allArgsArr
 
 	## Resolve paths
+	fResolvePath  dirPath_Base                   "${dirPath_Base}"                   ; readonly dirPath_Base
 	fResolvePath  dirPath_Source                 "${dirPath_Source}"                 ; readonly dirPath_Source
 	fResolvePath  filePath_ExecToTestAndInstall  "${filePath_ExecToTestAndInstall}"  ; readonly filePath_ExecToTestAndInstall
 	fResolvePath  filePath_TestExec              "${filePath_TestExec}"              ; readonly filePath_TestExec
 	fResolvePath  gitAutomationScript            "${gitAutomationScript}"            ; readonly gitAutomationScript
 
+	##DEBUG
+	#echo "dirPath_Base .....................: '${dirPath_Base}'"
+	#echo "dirPath_Source ...................: '${dirPath_Source}'"
+	#echo "filePath_ExecToTestAndInstall ....: '${filePath_ExecToTestAndInstall}'"
+	#echo "filePath_TestExec ................: '${filePath_TestExec}'"
+	#echo "gitAutomationScript ..............: '${gitAutomationScript}'"
+	#exit
+
 	## Validate
 	[[ -d "${meDir}"                ]]  ||  fThrowError "Path not found: '${meDir}'"
+	[[ -d "${dirPath_Base}"         ]]  ||  fThrowError "Path not found: '${dirPath_Base}'"
 	[[ -d "${dirPath_Source}"       ]]  ||  fThrowError "Path not found: '${dirPath_Source}'"
 	[[ -f "${filePath_TestExec}"    ]]  ||  fThrowError "File not found: '${filePath_TestExec}'"
 	[[ -f "${filePath_TestExec}"    ]]  ||  fThrowError "File not found: '${filePath_TestExec}'"
@@ -132,6 +143,7 @@ fMain(){
 	if ((! doQuietly)); then
 		fCopyright
 		fAbout
+		fEcho_Clean "Base directory ...............: ${dirPath_Base}"
 		fEcho_Clean "Source directory .............: ${dirPath_Source}"
 		if ((isCompileProject)); then
 		fEcho_Clean "Executable to build etc. .....: ${filePath_ExecToTestAndInstall}"
@@ -146,8 +158,7 @@ fMain(){
 	#### MAKEITSO
 	####
 
-	cd "${meDir}/.."
-	pushd "${dirPath_Source}" 1>/dev/null
+	pushd "${dirPath_Base}" 1>/dev/null
 
 	if ((isCompileProject)); then
 
