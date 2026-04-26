@@ -2,22 +2,25 @@
 
 # shellcheck disable=1090
 # shellcheck disable=1091
-# shellcheck disable=2001  ## Complaining about use of sed istead of bash search & replace.
-# shellcheck disable=2002  ## Useless use of cat. This works well though and I don't want to break it for the sake of syntax purity.
-# shellcheck disable=2004  ## Inappropriate complaining of "$/${} is unnecessary on arithmetic variables."
-# shellcheck disable=2034  ## Unused variables.
-# shellcheck disable=2119  ## Disable confusing and inapplicable warning about function's $1 meaning script's $1.
-# shellcheck disable=2120  ## OK with declaring variables that accept arguments, without calling with arguments (this is 'overloading').
-# shellcheck disable=2143  ## Used grep -q instead of echo | grep
+# shellcheck disable=2001   ## Complaining about use of sed istead of bash search & replace.
+# shellcheck disable=2002   ## Useless use of cat. This works well though and I don't want to break it for the sake of syntax purity.
+# shellcheck disable=2004   ## Inappropriate complaining of "$/${} is unnecessary on arithmetic variables."
+# shellcheck disable=2119   ## Disable confusing and inapplicable warning about function's $1 meaning script's $1.
+# shellcheck disable=2120   ## OK with declaring variables that accept arguments, without calling with arguments (this is 'overloading').
+# shellcheck disable=2143   ## Used grep -q instead of echo | grep
 # shellcheck disable=2154
-# shellcheck disable=2155  ## Disable check to 'Declare and assign separately to avoid masking return values'.
+# shellcheck disable=2155   ## Disable check to 'Declare and assign separately to avoid masking return values'.
 # shellcheck disable=2162
 # shellcheck disable=2181
 # shellcheck disable=2207
-# shellcheck disable=2317  ## Can't reach
+# shellcheck disable=2317   ## Can't reach
+## shellcheck disable=2034  ## Unused variables.
 
 
-##	Purpose: CI/CD-friendly test harness that passes or fails.
+##	Purpose:
+##		- CI/CD-friendly test harness that passes or fails.
+##		- Tests random output and round-trips through v2 to make sure the initial output was correct (at least if v2 is also correct).
+##		- This is NOT part of cicd script, as it's not a requirement to have v2 installed.
 ##	History: At bottom of this file. (Note: History for this is maintained outside of [or in addition to] git project.)
 
 ##	Copyright
@@ -26,19 +29,26 @@
 ##			https://spdx.org/licenses/GPL-2.0-or-later.html
 ##		SPDX-License-Identifier: GPL-2.0-or-later
 
+declare doLongTest=0 ; [[ "${CICDTEST_DO_LONGTEST}" == "1" ]] && doLongTest=1
 
 fMain(){
 	set -e
 
 	## Settings
-	exePath="../convert-base-v1b"
+	exe1="../convert-base-v1b"
+	exe2="convert-base-v2"  ## Optional, doesn't need to exist for tests to run and complete.
 	baseDefs="base-definitions.sh"
 	aliasDefs="alias-definitions.sh"
 
 	## Resolve paths
-	fResolvePath  exePath    "${exePath}"
+	fResolvePath  exe1       "${exe1}"
 	fResolvePath  baseDefs   "${baseDefs}"
 	fResolvePath  aliasDefs  "${aliasDefs}"
+	fResolvePath  exe2       "${exe2}"       0  ## Doesn't need to exist
+
+	## Compare to exe2?
+	local -i doComareWith_v2=0
+	[[ -x "${exe2}" ]]  &&  doComareWith_v2=1
 
 	## Load base definitions arrays
 	fEcho_Clean
@@ -52,165 +62,205 @@ fMain(){
 
 	####
 	#### Will it even load at all
-	####
 
 	fEcho_Clean
-	fEcho_Clean "Exe source ...: ${exePath}"
-	fEcho_Clean "Version ......: $("${exePath}" --version)"
-	fEcho_Clean_Force ; sleep 2
+	fEcho_Clean "Exe source ...: ${exe1}"
+	fEcho_Clean "Version ......: $("${exe1}" --version)"
+	fEcho_Clean_Force
+	sleep 2
+	if ((doComareWith_v2)); then
+		fEcho_Clean "v2 source ....: ${exe2}"
+		fEcho_Clean "Version ......: $("${exe2}" --version)"
+		fEcho_Clean_Force
+		sleep 2
+	fi
+
 	set +e
 
 
 	####
-	#### Test all base names
+	#### Test base name aliases
+
+	inputVal="987654321000055555555550000123456789" #...................................: The value is less important than just the aliases. But also, a large value shouldn't fail either.
+	fTestAllAliases  "base10"  "${inputVal}" #..........................................: All should pass
+	fRunTest  'error'  "${expectVal}"  "'${exe1}'  '${inputVal}'  bogusBaseName" #...: This one should fail
+
+
 	####
+	#### Looped random fuzz-testing
 
-	inputVal="987654321000055555555550000123456789"
-	fTestAllAliases  "base10"  "${inputVal}"
-	fRunTest  'error'  "${expectVal}"  "'${exePath}'  '${inputVal}'  bogusBaseName"
-
-
-	####
-	#### Looped quazi-random fuzz-testing
-	####
-
+	## Loop counters for next sections
 	loopCount=100
-	fFuzzTest_BaseToBaseAndBack
+	((doLongTest))  &&  loopCount=5000
+
+	## Test **AGAINST SELF** (only bases 2, 8, 10, 16, 36)
+	fFuzzTest_LowerBases_RandomInOut_Self
+
+	#### Test **AGAINST v2** (all the bases)
+	((doComareWith_v2))  &&  fFuzzTest_Base10_To_BaseX_AndBack_via_v2
 
 
-	## Test val to use for next few sections
+	####
+	#### Test val to use for next sections
 	inputVal="00012345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
+
 
 	####
 	#### By-hand one-way tests, expect equal
-	####
 
 	## 128v1compat
 	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
 	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128v1compat"
+	fRunTest  '=='  "${expectVal}"  "'${exe1}'  ${inputVal}  128v1compat"
 
 	## 128j1
 	#expectVal="$(convert-base-v2  "${inputVal}"  128jc)"  # ; echo "${expectVal}" | ct
 	expectVal="⍩pT🜿NjqQQ҂ᛏ4҂¥iFᛯÔʞ◂SUĈδ⍤Y1D§±ᛦvRSMᛝ⌲QѢKDlPsЋS÷⍋▿1HNÎB1JSZa▸ᚠC2ф5ᛯ±ŴWλŴĴpdÎa"
-	fRunTest  '=='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
+	fRunTest  '=='  "${expectVal}"  "'${exe1}'  ${inputVal}  128j1"
 
 
 	####
 	#### By-hand one-way tests, expect NOT equal
-	####
 
 	## 128j1 != 128v1compat
 	#expectVal="$(convert-base-v1  "${inputVal}"  128j1)"  #; echo "${expectVal}"
 	expectVal="ẽ🝅q¥fᚧ▵jj⍩Ξ4⍩ŷᚠMϠÿ≈⍤prẌŶãʞ1HÃ⍋ϟ‡mpcδñjĥWHᚼh▿ĉp⍢ỹʬ1QfẅF1VpλμɤЖG2ĵ5Ϡ⍋Éw≠Éẍ🝅ᛘẅμ"
-	fRunTest  '!='  "${expectVal}"  "'${exePath}'  ${inputVal}  128j1"
+	fRunTest  '!='  "${expectVal}"  "'${exe1}'  ${inputVal}  128j1"
 
 
 	####
 	#### By-hand one-way tests, expect ERROR
-	####
 
 	## Removed base 16 as input, should error.
 	expectVal=""
-	fRunTest  'error'  "${expectVal}"  "'${exePath}'  --ibase 26  'ABCXYZ'  10"
+	fRunTest  'error'  "${expectVal}"  "'${exe1}'  --ibase 26  'ABCXYZ'  10"
 
 
 	####
 	#### By-hand round-trips self-tests, expect equal.
-	####
 
 	expectVal="12345678999999999999999901234567899999999999999991234567899999999900000000000000000000000000000000000000000000000999999999999999999999999999999999999998765432100"
-	fRunChained_TestLast  '=='  "${expectVal}"  "'${exePath}'  --ibase 10  ${inputVal}  base16 ; '${exePath}'  --ibase 16  %CMD1_OUTPUT%  base10"
+	fRunChained_TestLast  '=='  "${expectVal}"  "'${exe1}'  --ibase 10  ${inputVal}  base16 ; '${exe1}'  --ibase 16  %CMD1_OUTPUT%  base10"
 
 :;}
 
 
-fFuzzTest_BaseToBaseAndBack(){
+fFuzzTest_LowerBases_RandomInOut_Self(){
 
 	## Settings
-	local -ri count_InputBases=5
-#	local -ri count_OutputBases=28
-	local -ri count_OutputBases=5
-	local -ri count_MaxInputLen=64
-	local -i  random_InputBase=0
-	local -i  random_OutputBase=0
+	local -r  LANG="C.UTF-8"
+	local -ri count_MaxInputLen=1024
+	local -ri count_TotalDefinedBases_Input=${#bases_Input_IdxToKey[@]}
+	local -ri count_TotalDefinedBases_Output=$count_TotalDefinedBases_Input  ## Output base will be used as an intermediat input base, so has to be the subset of valid v1b input bases.
+
+	## Loop variables
+	local -i  randomBaseIdx=-1
 	local -i  random_InputLen=0
-	local -a  inputBaseArr=()
-	local     inputBase=""
 	local     inputStr=""
-	local     outputBase=""
+	local     inputBaseName=""
+	local     inputBaseSymbols=""
+	local     intermediateBaseName=""
+	local     intermediateVal=""
+	local     exe1name=""
+	local     exe1args=""
 
-	for ((i=0; i<loopCount; i++)); do
+	for ((i=1; i<=loopCount; i++)); do
 
-		## Random input base
-		random_InputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_InputBases))
-		case $random_InputBase in
-			1) inputBase="2"  ; inputBaseArr=("${base2[@]}")   ;;
-			2) inputBase="8"  ; inputBaseArr=("${base8[@]}")   ;;
-			3) inputBase="10" ; inputBaseArr=("${base10[@]}")   ;;
-			4) inputBase="16" ; inputBaseArr=("${base16[@]}")  ;;
-		#	5) inputBase="26" ; inputBaseArr=("${base26[@]}")  ;;  ## Testing revealed that `bc` can't actually do base-26.
-			5) inputBase="36" ; inputBaseArr=("${base36[@]}")  ;;
-		esac
+		## Get a random input base and its list of symbols
+		randomBaseIdx=$((1 + $(od -An -N1 -i /dev/urandom) % (count_TotalDefinedBases_Input - 1) ))
+		inputBaseName="${bases_Input_IdxToKey[randomBaseIdx]}"
+		inputBaseSymbols="${bases_Input_KeyToVal["${inputBaseName}"]}"
 
-		## Random input length
-		random_InputLen=$((1 + $(od -An -N1 -i /dev/urandom) % count_MaxInputLen))
+		## Get a random input of random in-base symbols, or random length
+		random_InputLen=$((1 + $(od -An -N2 -i /dev/urandom) % count_MaxInputLen))
+		fScrambleString  inputStr  "${inputBaseSymbols}"   $random_InputLen
 
-		## Random input string
-		fScrambleString  inputStr  "$(IFS=; echo "${inputBaseArr[*]}")"   $random_InputLen
+		## To avoid falsely triggering an error:
+		## Strip off leading symbols representing '0' from input, which will be gone from the output during conversion.
+		expectVal="${inputStr}"
+		until [[ "${expectVal:0:1}" !=  "${inputBaseSymbols:0:1}" ]]; do expectVal="${expectVal:1}"; done
+		[[ -z "${expectVal}" ]]  &&  continue  ## If it's empty now, just skip to next test.
 
-		## Random output base
-	#	random_OutputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_OutputBases))
-		random_OutputBase=$((1 + $(od -An -N1 -i /dev/urandom) % count_InputBases))
-		case $random_OutputBase in
-			1)    outputBase="2"            ;;
-			2)    outputBase="8"            ;;
-			3)    outputBase="10"           ;;
-			4)    outputBase="16"           ;;
-		#	5)    outputBase="26"           ;;  ## Testing revealed that `bc` can't actually do base-26.
-			5)    outputBase="36"           ;;
-		#	7)    outputBase="32c"          ;;
-		#	8)    outputBase="32h"          ;;
-		#	9)    outputBase="32r"          ;;
-		#	10)   outputBase="32w"          ;;
-		#	11)   outputBase="38hostname"   ;;
-		#	12)   outputBase="39username"   ;;
-		#	13)   outputBase="45email"      ;;
-		#	14)   outputBase="48j1w"        ;;
-		#	15)   outputBase="48v1compat"   ;;
-		#	16)   outputBase="52"           ;;
-		#	17)   outputBase="62"           ;;
-		#	18)   outputBase="64h"          ;;
-		#	19)   outputBase="64j1"         ;;
-		#	20)   outputBase="64j1w"        ;;
-		#	21)   outputBase="64r"          ;;
-		#	22)   outputBase="64u"          ;;
-		#	23)   outputBase="64v1compat"   ;;
-		#	24)   outputBase="128j1"        ;;
-		#	25)   outputBase="128j1w"       ;;
-		#	26)   outputBase="128v1compat"  ;;
-		#	27)   outputBase="256j1"        ;;
-		#	28)   outputBase="288j1"        ;;
-		esac
+		## Pick a random intermediate output base
+		randomBaseIdx=$((1 + $(od -An -N1 -i /dev/urandom) % (count_TotalDefinedBases_Output - 1) ))
+		intermediateBaseName="${bases_Input_IdxToKey[randomBaseIdx]}"
+
+		## Format and prepare the first command for display, to be shown in output (via variable "hook"); and run it
+		exe1name=""  exe1args=""
+		fGetIsolatedExeName  exe1name  exe1args  "'${exe1}'  --ibase '${inputBaseName}'  '${expectVal}'  '${intermediateBaseName}'"
+		__fRunTest_EchoHook1="Cmd 1 ..........: '${exe1name}'${exe1args}"
+		intermediateVal="$("${exe1}"  --ibase "${inputBaseName}"  "${expectVal}"  "${intermediateBaseName}")"
+
+		##DEBUG
+		#sleep 2
+		#echo
+		#echo "inputBaseName ...............: ${inputBaseName}"
+		#echo "random_InputLen .............: ${random_InputLen}"
+		#echo "inputStr ....................: ${inputStr}"
+		#echo "expectVal ...................: ${expectVal}"
+		#echo "intermediateBaseName ........: ${intermediateBaseName}"
+		#echo "intermediateVal .............: ${intermediateVal}"
+		#echo
+
+		## Run the second command with the previous command's output as this command's input.
+		## This command's output should be the same as the previous command's input.
+		fRunTest  '=='  "${expectVal}"  "'${exe1}'  --ibase '${intermediateBaseName}'  '${intermediateVal}'  '${inputBaseName}'"
+
+	done
+
+}
+
+fFuzzTest_Base10_To_BaseX_AndBack_via_v2(){
+
+	## Settings
+	local -r  LANG="C.UTF-8"
+	local -ri count_MaxInputLen=256
+	local -ri count_TotalDefinedBases_Output=${#bases_Output_IdxToKey[@]}
+
+	## Loop variables
+	local -i  random_InputLen=0
+	local     inputStr=""
+	local -i  randomBaseIdx=-1
+	local     intermediateBaseName=""
+	local     intermediateVal=""
+	local     exe1name=""
+	local     exe1args=""
+
+	for ((i=1; i<=loopCount; i++)); do
+
+		## Generate a random base 10 number for first input
+		random_InputLen=$((1 + $(od -An -N2 -i /dev/urandom) % count_MaxInputLen))
+		fScrambleString  inputStr  "0123456789"   $random_InputLen
 
 		## To avoid falsely triggering an error:
 		## Strip off leading symbols representing '0' from input, which will be gone from the output during conversion.
 		shopt -s extglob
-		inputStr="${inputStr##+("${inputBaseArr[0]}")}"
-		[[ -z "${inputStr}" ]]  &&  continue
-		expectVal="${inputStr}"
+		expectVal="${inputStr#"${inputStr%%[!0]*}"}"
+		[[ -z "${expectVal}" ]]  &&  continue
 
-		## Format and prepare the first command for display, to be shown in output (via variable "hook")
-		local exeName=""  exeArgs=""
-		fGetIsolatedExeName  exeName  exeArgs  "'${exePath}'  --ibase ${inputBase}  '${inputStr}'  ${outputBase}"
-		__fRunTest_EchoHook1="Cmd 1 ..........: '${exeName}'${exeArgs}"
+		## Pick a random intermediate v1b output -> v2 input base
+		randomBaseIdx=$((1 + $(od -An -N1 -i /dev/urandom) % (count_TotalDefinedBases_Output - 1) ))
+		intermediateBaseName="${bases_Output_IdxToKey[randomBaseIdx]:-}"
 
-		## Run the first command, to get the intermediate output for the second
-		cmd1Output_cmd2Input="$("${exePath}"  --ibase ${inputBase}  "${inputStr}"  ${outputBase})"
+		## Format and prepare the first command for display, to be shown in output (via variable "hook"); and run it
+		exe1name=""  exe1args=""
+		fGetIsolatedExeName  exe1name  exe1args  "'${exe1}'  --ibase 10  '${expectVal}'  '${intermediateBaseName}'"
+		__fRunTest_EchoHook1="Cmd 1 ..........: '${exe1name}'${exe1args}"
+		intermediateVal="$("${exe1}"  --ibase 10  "${expectVal}"  "${intermediateBaseName}")"
+
+		##DEBUG
+		#echo
+		#echo "random_InputLen .............: ${random_InputLen}"
+		#echo "inputStr ....................: ${inputStr}"
+		#echo "expectVal ...................: ${expectVal}"
+		#echo "randomBaseIdx ...: ${randomBaseIdx}"
+		#echo "intermediateBaseName ........: ${intermediateBaseName}"
+		#echo "intermediateVal .............: ${intermediateVal}"
+		#sleep 5
 
 		## Run the second command with the previous command's output as this command's input.
 		## This command's output should be the same as the previous command's input.
-		fRunTest  '=='  "${expectVal}"  "'${exePath}'  --ibase ${outputBase}  ${cmd1Output_cmd2Input}  ${inputBase}"
+		fRunTest  '=='  "${expectVal}"  "'${exe2}'  --from '${intermediateBaseName}'  --to 10  --  '${intermediateVal}'"
 
 	done
 
@@ -221,7 +271,7 @@ fTestAllAliases(){
 	local -r inputBase="${1:-}"  ; shift || true
 	local -r inputVal="${1:-}"   ; shift || true
 	for nextBase in "${baseAliasesArr[@]}"; do
-		fRunTest  'no_error'  ""  "'${exePath}'  --ibase ${inputBase}  ${inputVal}  ${nextBase}"
+		fRunTest  'no_error'  "[any value]"  "'${exe1}'  --ibase ${inputBase}  ${inputVal}  ${nextBase}"
 	done
 }
 
@@ -255,7 +305,7 @@ fGetIsolatedExeName(){
 	local -r  commandString="${1:-}"                ; shift || true   ## The full command line
 :;}
 fScrambleString(){
-	local -n  outputVarName_1myn9vt=${1:-}   ; shift || true  ## The parent variable to put the results in. The results should have no spaces, unless a space is one of the inputs as a symbol to randomize.
+	local -n  outputVarName_1myn9vt=${1:-}   ; shift || true  ## The parent variable to put the results in. The results should have no spaces, unless a space is one of the inputs as a symbol to randomize. But will still work with spaces.
 	local -r  inputSymbolList="${1:-}"       ; shift || true  ## List of symbols to scramble, as a regular UTF-8 bash string. Will have no spaces or delimiters, unless a space is one of the inputs as a symbol to randomize.
 	local -ri outputLen=${1:-1}              ; shift || true  ## Output scrambled string length
 	local -ri canRepeatChars=${1:-1}         ; shift || true  ## 0: Don't repeat any symbols if possible (i.e. if input len > output len). 1: Try to repeat symbols in the random output.
@@ -335,9 +385,5 @@ fEntryPoint | fPipe_LogAndShowPartialOutput
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ##	Script history:
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-##		- 20260420 JC: Copied for convert-base-v2.
-##		- 20260421 JC: Added polish.
-##		- 20260423 JC: Added fRunChained_TestLast() to be able to test commands that can't be piped.
-##		- 20260424 JC:
-##			- Separated specific test.sh and generic n8test
-##			- Added testing all base names and aliases.
+##		- 20260420 JC: Copied test.sh to test_against_v2.sh.
+##		- 20260425 JC: Finished.

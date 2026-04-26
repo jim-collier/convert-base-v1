@@ -20,11 +20,10 @@
 ##	Purpose: CI/CD-friendly test harness that passes or fails.
 ##	History: At bottom of this file. (Note: History for this is maintained outside of [or in addition to] git project.)
 
-##	Copyright
-##		Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)
-##		Licensed under the GNU General Public License v2.0 or later. Full text at:
-##			https://spdx.org/licenses/GPL-2.0-or-later.html
-##		SPDX-License-Identifier: GPL-2.0-or-later
+##	Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)
+##	Licensed under the GNU General Public License v2.0 or later. Full text at:
+##		https://spdx.org/licenses/GPL-2.0-or-later.html
+##	SPDX-License-Identifier: GPL-2.0-or-later
 
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -58,16 +57,22 @@ fEntryPoint(){
 declare -i currentPassStreak=0
 declare    __fRunTest_EchoHook1=""
 fRunTest(){
+	## Args
 	local -r  testMode="${1:-}"   ; shift || true   ## 'equal', 'notequal', 'error', 'noerror'.  The latter two do no comparisons and accept any 'expectVal'.
 	local -r  expectVal="${1:-}"  ; shift || true   ## Inherit from parent instead.
 	local -r  cmdStr="${1:-}"     ; shift || true
 
-	local -i  errNum=0
+	## Settings
+	local -ri doConditionalAbortOnFirstError=1
+
+	## Variables
+	local  -i errNum=0
 	local     gotVal=""
 	local -ri prevCount_Passed=${count_Passed}
 	local -ri prevCount_Failed=${count_Failed}
 	local -ri prevCount_Errors_Expected=${count_Errors_Expected}
 	local -ri prevCount_Errors_Unexpected=${count_Errors_Unexpected}
+	local  -i doConditionalAbort=0
 
 	((++count_Tests))
 
@@ -101,9 +106,11 @@ fRunTest(){
 		## Action if the test failed
 		currentPassStreak=0
 		fEcho_Clean "⛔ FAILED: Test# ${count_Tests} [Test mode: '${testMode}']"
+		doConditionalAbort=1
 	elif ((count_Errors_Unexpected > prevCount_Errors_Unexpected)); then
 		## Action if the test UN-expectedly errored
 		fEcho_Clean "⚠️ Errored unexpectedly: Test# ${count_Tests} [Test mode: '${testMode}']"
+		doConditionalAbort=1
 	fi
 
 	local exeName=""  exeArgs=""
@@ -113,6 +120,15 @@ fRunTest(){
 	fEcho_Clean "Expected value .: '${expectVal}'"
 	fEcho_Clean "Actual value ...: '${gotVal}'"
 	fEcho_Clean
+
+	if ((doConditionalAbortOnFirstError)) && ((doConditionalAbort)); then
+		fEcho_Clean
+		echo "[ ${meName_t4rge}.${FUNCNAME[0]}(): Exiting on first error as instructed." 1>&2
+		fEcho_Clean_Force
+		trap - ERR
+		set -e
+		return 1
+	fi
 
 :;}
 
@@ -241,7 +257,7 @@ fScrambleString(){
 	## Coded by Claude Opus 4.7 Adaptive, 20260423-162519
 
 	## Args
-	local -n  outputVarName_1myn9vt=${1:-}   ; shift || true  ## The parent variable to put the results in. The results should have no spaces, unless a space is one of the inputs as a symbol to randomize.
+	local -n  outputVarName_1myn9vt=${1:-}   ; shift || true  ## The parent variable to put the results in. The results should have no spaces, unless a space is one of the inputs as a symbol to randomize. But will still work with spaces.
 	local -r  inputSymbolList="${1:-}"       ; shift || true  ## List of symbols to scramble, as a regular UTF-8 bash string. Will have no spaces or delimiters, unless a space is one of the inputs as a symbol to randomize.
 	local -ri outputLen=${1:-1}              ; shift || true  ## Output scrambled string length
 	local -ri canRepeatChars=${1:-1}         ; shift || true  ## 0: Don't repeat any symbols if possible (i.e. if input len > output len). 1: Try to repeat symbols in the random output.
