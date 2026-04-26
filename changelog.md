@@ -8,6 +8,28 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.1
+
+Published 2026-04-26.
+
+### Notes
+
+`v1.0.1`, as the semantic version would suggest, is 100% backwards-compatible with `v1.0.0`. Nothing from the former interface or input/output has changed, only a bugfix and new option aliases added.
+
+### Added
+
+- Added option `--from` as an alias to `--ibase`.
+
+- Added optional flag `--obase` (and alias `--to`), as an alternative to specifying the base as a positional argument.
+
+- Updated inline help, and README.md, to reflect additional interfaces.
+
+### Changed
+
+- Bug fix: `--help` produced an error. It was trying to call non-existent function `fPrint_Help()`, rather than `fHelp()`
+
+- Updated testing to also test flags like that.
+
 ## v1.0.0
 
 Published 2026-04-25.

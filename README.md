@@ -196,8 +196,9 @@ Note that some of the larger bases appear to have longer output - but that's onl
 - 2026-04-17:
 	- Added sections: Input base, and Example output.
 	- Removed custom base 94ascii for Output bases (no longer supported).
-- 2026-04-23: Updated for v1b.
-- 2026-04-25: Updated for v1.1.0
+- 2026-04-23: Updated for change to `-v1b`.
+- 2026-04-25: Updated for v1.0.0
+- 2026-04-25: Updated for v1.0.1.
 
 ## Copyright and license
 
