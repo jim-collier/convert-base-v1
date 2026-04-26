@@ -192,13 +192,17 @@ Note that some of the larger bases appear to have longer output - but that's onl
 
 ## Document history
 
-- 2023-10-09: First version.
+- 2026-04-26:
+	- Updated for v1.0.1.
+	- Fixed minor errors in this section.
+- 2026-04-25:
+	- Updated for v1.0.0
+	- Completed "Output Bases" and "Examples" section.
+- 2026-04-23: Updated for change to `-v1b`.
 - 2026-04-17:
 	- Added sections: Input base, and Example output.
 	- Removed custom base 94ascii for Output bases (no longer supported).
-- 2026-04-23: Updated for change to `-v1b`.
-- 2026-04-25: Updated for v1.0.0
-- 2026-04-25: Updated for v1.0.1.
+- 2023-10-09: First version.
 
 ## Copyright and license
 

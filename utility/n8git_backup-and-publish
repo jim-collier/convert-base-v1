@@ -44,8 +44,8 @@ fi
 fCopyright(){ { ((doQuietly)) || ((wasShown_Copyright)); } && return; wasShown_Copyright=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
-	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild},"
-	fEcho_Clean "Copyright © ${thisCopyrightYear} ${thisAuthor}."
+#	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild},"  ## Don't show version, it may confuse author with version of product being published.
+	fEcho_Clean "${meName}, Copyright © ${thisCopyrightYear} ${thisAuthor}."
 	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
 	fEcho_Clean "  https://spdx.org/licenses/GPL-2.0-or-later.html"
 	#           X-------------------------------------------------------------------------------X

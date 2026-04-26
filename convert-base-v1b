@@ -29,8 +29,8 @@
 declare -i    doDebug=0
 declare -i    runAsSudo=0
 declare -i    doQuietly=0; [[ "${X9CONVERTBASE1_QUIET}" == "1" ]] && doQuietly=1
-declare       thisVersion="v1.0.1"
-declare       thisBuild="1mywapq"
+declare       thisVersion="v1.0.2"
+declare       thisBuild="1mywgex"
 declare       thisCopyrightYear="2023-2026"
 declare       thisAuthor="Jim Collier (ID: 1cv◂‡Vᛦ)"
 
@@ -42,9 +42,10 @@ declare       thisAuthor="Jim Collier (ID: 1cv◂‡Vᛦ)"
 
 fVersion(){ { ((doQuietly)) || ((wasShown_Version)); } && return; wasShown_Version=1;
 	fEcho_Clean "$(basename "${0}") ${thisVersion} build ${thisBuild}" ;:;}
+
 fCopyright(){ { ((doQuietly)) || ((wasShown_Copyright)); } && return; wasShown_Copyright=1;
 	fEcho_Clean ""
-	fEcho_Clean "$(basename "${0}") ${thisVersion} build ${thisBuild},"
+	wasShown_Version=0; fVersion
 	fEcho_Clean "Copyright © ${thisCopyrightYear} ${thisAuthor}."
 	fEcho_Clean "Project: https://github.com/jim-collier/convert-base-v1b"
 	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
