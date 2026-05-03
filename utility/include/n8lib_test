@@ -38,9 +38,9 @@ fEntryPoint(){
 	local -i count_Passed=0
 	local -i count_Failed=0
 
-	set +e
+#	set +e
 		fMain
-	set -e
+#	set -e
 
 	fEcho_Clean; fEcho_Clean "Results:"
 	fEcho_Clean "Total tests .........: ${count_Tests}"
@@ -80,11 +80,17 @@ fRunTest(){
 	if [[ "${testMode}" ==  'err'* ]]; then
 		isExpectingError=1
 		fEcho; fEcho "Test #${count_Tests} Expecting error, BEGIN ..."
-		gotVal="$(eval "${cmdStr}"  2> >(fPipe_LogOnly >&2))" ; errNum=$? ; true  ## Send error messages to both stderr, and log
+		set +e
+			gotVal="$(eval "${cmdStr}"  2> >(fPipe_LogOnly >&2))"  ## Send error messages to both stderr, and log
+			errNum=$?
+			true
+		set -e
 		fEcho "Test #${count_Tests} Expecting error, END."; fEcho
 		isExpectingError=0
 	else
-		gotVal="$(eval "${cmdStr}"  2> >(fPipe_LogOnly >&2))" ; errNum=$? ; true  ## Send error messages to both stderr, and log
+		gotVal="$(eval "${cmdStr}"  2> >(fPipe_LogOnly >&2))"  ## Send error messages to both stderr, and log
+		errNum=$?
+		true
 	fi
 	fTallyResult  $errNum  "${testMode}"  "${expectVal}"  "${gotVal}"
 
@@ -119,16 +125,17 @@ fRunTest(){
 	fEcho_Clean "Test command ...: '${exeName}'${exeArgs}"
 	fEcho_Clean "Expected value .: '${expectVal}'"
 	fEcho_Clean "Actual value ...: '${gotVal}'"
-	fEcho_Clean
 
 	if ((doConditionalAbortOnFirstError)) && ((doConditionalAbort)); then
-		fEcho_Clean
-		echo "[ ${meName_t4rge}.${FUNCNAME[0]}(): Exiting on first error as instructed." 1>&2
+		sleep 0.5  ## Give time for stdout and stderr to sync
+		echo "[ ${meName_t4rge}.${FUNCNAME[0]}(): Exiting on first error as instructed. ]" 1>&2
 		fEcho_Clean_Force
 		trap - ERR
 		set -e
 		return 1
 	fi
+
+	fEcho_Clean
 
 :;}
 
@@ -218,7 +225,7 @@ fPipe_LogAndShowPartialOutput() {
 		done
 		printf '%s\n' "$line"
 	done
-}
+:;}
 fPipe_LogOnly() {
 	((! __fPipe_Log_isInitialized)) && return
 	## Send stderr to this, e.g. somecmd 2> >(fPipe_LogOnly >&2) | fPipe_LogAndShowPartialOutput
@@ -269,6 +276,9 @@ fScrambleString(){
 	local -i i j take remaining
 	local	tmp result=''
 	local -a chars=() shuffled=()
+
+	## Validate
+	{ [[ -z "${inputSymbolList}" ]] || ((inputLen <= 0)); }  &&  { echo -e "\n[ $(date "+%Y%m%d-%H%M%S.%N") ]  Error in ${meName_t4rge}.${FUNCNAME[0]}(): Input symbol list is empty.\n"; exit 1; }
 
 	## Split UTF-8 input into individual characters (bash string indexing is char-based in a UTF-8 locale).
 	for (( i=0; i<inputLen; i++ )); do
@@ -355,13 +365,12 @@ declare -i isExpectingError=0
 declare -i count_Errors_Unexpected=0
 declare -i count_Errors_Expected=0
 #trap 'printf "(line %s) " "$LINENO" "$?" >&2; echo; { ((isExpectingError))  &&  ((++count_Errors_Expected)); }  ||  ((++count_Errors_Unexpected))' ERR
-trap '{ ((isExpectingError))  &&  ((++count_Errors_Expected)); }  ||  ((++count_Errors_Unexpected))' ERR
+trap '_errNo=$?; { ((isExpectingError))  &&  ((++count_Errors_Expected)); }  ||  ((++count_Errors_Unexpected)); sleep 0.25; echo "ERR: errno=${_errNo} line=${LINENO} command: ${BASH_COMMAND}" >&2' ERR
 
 
 ## Error and exit settings
  set   -u  ## Require variable declaration. Stronger than mere linting. But can struggle if functions are in sourced files.
  set   -e  #...................: Exit on errors. This is inconsistent (made a little better with settings below), so eventually may move to 'set +e' (which is more constant work and mental overhead).
-#set   +e  #...................: Do NOT exit on errors.
  set   -E  #...................: Propagate ERR trap settings into functions, command substitutions, and subshells.
  set   -o pipefail  #..........: Make sure all stages of piped commands also fail the same.
  shopt -s inherit_errexit  #...: Propagate 'set -e' ........ into functions, command substitutions, and subshells. Will fail on Bash <4.4.
@@ -374,7 +383,7 @@ declare -i isSourced_t4rhs; { (return 0 2>/dev/null) && isSourced_t4rhs=1; } || 
 ((! isSourced_t4rhs)) && { echo -e "\nThis script is meant to be 'sourced' from within another script.\n"; exit 1; }
 
 if [[ -z "${meName_t4rge+x}" ]]; then
-	declare -r mePath_t4rge="${BASH_SOURCE[0]}"
+	declare -r mePath_t4rge="$(realpath -e "${BASH_SOURCE[0]}")"
 	declare -r meName_t4rge="$(basename "${mePath_t4rge}")"
 	declare -r meDir_t4rge="$(dirname "${mePath_t4rge}")"
 	declare -r serialDT_t4rge="$(date "+%Y%m%d-%H%M%S")"

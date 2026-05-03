@@ -43,13 +43,13 @@ fi
 ## Copyright, about, & syntax (minified)
 fCopyright(){ { ((doQuietly)) || ((wasShown_Copyright)); } && return; wasShown_Copyright=1;
 	fEcho_Clean ""
-	#           X-------------------------------------------------------------------------------X
 #	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild},"  ## Don't show version, it may confuse author with version of product being published.
 	fEcho_Clean "${meName}, Copyright © ${thisCopyrightYear} ${thisAuthor}."
 	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
 	fEcho_Clean "  https://spdx.org/licenses/GPL-2.0-or-later.html"
-	#           X-------------------------------------------------------------------------------X
+	fEcho_Clean "No Warranty."
 	fEcho_Clean "" ;:;}
+
 fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
@@ -60,16 +60,13 @@ fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	fEcho_Clean "  • git push origin"
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "" ;:;}
+
 fSyntax(){  { ((doQuietly)) || ((wasShown_Syntax)); } && return; wasShown_Syntax=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "Arguments:"
-	fEcho_Clean "  --quiet"
-	fEcho_Clean "      [optional]: Be less verbose, and don't prompt user to continue."
-	fEcho_Clean "  --help"
-	fEcho_Clean "      [optional]: Shows copyright, about, and this syntax."
-	fEcho_Clean "  --version"
-	fEcho_Clean "      [optional]: Shows copyright and version."
+	fEcho_Clean "  --quiet [optional]: Be less verbose, and don't prompt user to continue."
+	fEcho_Clean "  --help, --version [or -h, -v]"
 	fEcho_Clean ""
 	fEcho_Clean "Expected folder structure - something like:"
 	fEcho_Clean "    project-name              [REQUIRED, any name, parent folder]"
@@ -136,14 +133,17 @@ fMain(){
 		fEcho_Clean "Rar command:"
 		fEcho_Clean "${cmd_Rar}"
 		fEcho_Clean
-		fEcho_Clean "git remote info (git remote -v):"
+		fEcho_Clean "Remote info (git remote -v); make sure it's 'git@' and not 'https://':"
 		git remote -v
+		fEcho_Clean
+		fEcho_Clean "Current branch (git branch --show-current):"
+		git branch --show-current
 		fEcho_Clean
 		fEcho_Clean "git user info:"
 		git config user.name
 		git config user.email
 		fEcho_Clean
-		fEcho_Clean "SSH login test:"
+		fEcho_Clean "SSH login test to remote:"
 		ssh -T git@github.com || true
 		fIntroPromptToContinue  ""
 		fEcho_Clean
@@ -325,6 +325,36 @@ fParseArgs(){
 
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Generic functions
+fResolvePath(){
+	##	Purpose:
+	##		- Resolves an argument to a canonical full path, while being careful to not be too broad as to resolve to something else with the same name.
+	##		- Resolution priority:
+	##			- Exactly as specified.
+	##			- "[this script's path]/lib/[specified name if given without a path]"
+	##			- "[this script's path]/include/[specified name if given without a path]"
+	##			- "[this script's path]/includes/[specified name if given without a path]"
+	##			- If specified a name without a path: Find in $PATH
+	##			- If doesn't have to exist, and still haven't found it, then just canonicalize original argument
+	local -n parentVarName_ResolvedPath_t4rej=${1:-}  ; shift || true  ## Parent variable to store fully resolved path in.
+	local    nameOrPath="${1:-}"                      ; shift || true  ## File or folder path (relative or absolute). If an executable file, can be just a name to search in $PATH, to fully resolve.
+	local -i mustExist=${1:-0}                        ; shift || true  ## 1 [default]: path must exist or error occurs. 0: Just rationalize paths, doesn't have to exist.
+	[[   -z "${nameOrPath}" ]]  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): No file or directory specified to resolve.\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	local -r mePath_t4rmy="$(dirname "${BASH_SOURCE[0]}")"
+	local -i isExeWithNoPath=0 ; [[ "${nameOrPath}" == "$(basename "${nameOrPath}")" ]] && isExeWithNoPath=1 ; readonly isExeWithNoPath
+	local    testPath="${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]]                          ; }  &&  testPath="${mePath_t4rmy}/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/lib/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/include/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/includes/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="$(which "${nameOrPath}" 2>/dev/null || true)"
+	{ [[ ! -e "${testPath}"   ]] && ((mustExist))         ; }  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔc].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	{ [[ ! -e "${testPath}"   ]] || [[ -z "${testPath}" ]]; }  &&  testPath="${nameOrPath}"  ## Revert to original definition
+	if ((mustExist)); then testPath="$(realpath -e "${testPath}" 2>/dev/null || true)"
+	else                   testPath="$(realpath -m "${testPath}" 2>/dev/null || true)"; fi
+	## Last check to fail on
+	{ [[ -z "${testPath}" ]] || { [[ ! -e "${testPath}" ]] && ((mustExist)); }; }  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔs].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	## Success
+	parentVarName_ResolvedPath_t4rej="${testPath}"; }
 fGetOgUserName(){
 	local -n varName_s74rg=$1  ## Arg <REQUIRED>: Variable reference for result.
 	local    retVal=""

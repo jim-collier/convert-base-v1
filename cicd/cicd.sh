@@ -31,7 +31,7 @@
 if [[ -z "${doQuietly+x}" ]]; then
 
 	## Settings (relative paths defined here will be verified and resolved later)
-	declare    dirPath_Base="$(dirname "${BASH_SOURCE[0]}")/.."
+	declare    dirPath_Base=".."
 	declare    dirPath_Source="${dirPath_Base}"
 	declare    filePath_ExecToTestAndInstall="${dirPath_Base}/convert-base-v1b"
 	declare    filePath_TestExec="${dirPath_Base}/cicd/test.sh"
@@ -42,25 +42,31 @@ if [[ -z "${doQuietly+x}" ]]; then
 	## Generic constants
 	declare  -i doQuietly=0
 	declare  -i doPromptToContinue=1
-	declare -r  thisVersion="1.0.0-beta.1"         ## Put you script's semantic version here.
-	declare -r  thisBuild="20260423-140709"
+	declare -r  thisVersion="1.0.0-beta.2"         ## Put you script's semantic version here.
+	declare -r  thisBuild="1mzfbaz"
 	declare -r  thisCopyrightYear="2026"           ## Put your copyright date here.
 	declare -r  thisAuthor="Jim Collier"           ## Put your copyright name here.
 	declare -ri atLeastOneArgRequired=0
 	declare -ri doAsSudo=0
 fi
 
-#•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
-## Copyright, about, & syntax (minified)
+
+## Version, copyright, about, syntax (minified but not obfuscated)
+## Note: Echoing rather than HEREDOC is preferrable because - while slower - that's not
+##       an issue in this context, and more importantly, HEREDOC is too hard to manage
+##       indentation, esp. for the fSyntax() section.
+
+fVersion(){ { ((doQuietly)) || ((wasShown_Version)); } && return; wasShown_Version=1;
+	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild}" ;:;}
+
 fCopyright(){ { ((doQuietly)) || ((wasShown_Copyright)); } && return; wasShown_Copyright=1;
 	fEcho_Clean ""
-	#           X-------------------------------------------------------------------------------X
-#	fEcho_Clean "${meName} v${thisVersion} build ${thisBuild},"  ## Don't show version info. Can confuse with the version of the product being built.
-	fEcho_Clean "${meName}, Copyright © ${thisCopyrightYear} ${thisAuthor}."
+	fEcho_Clean "${meName}, Copyright © ${thisCopyrightYear} ${thisAuthor}."  ## Don't show version info. Can confuse with the version of the product being built.
 	fEcho_Clean "Licensed under the GNU General Public License v2.0 or later. Full text at:"
 	fEcho_Clean "  https://spdx.org/licenses/GPL-2.0-or-later.html"
-	#           X-------------------------------------------------------------------------------X
+	fEcho_Clean "No warranty."
 	fEcho_Clean "" ;:;}
+
 fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
@@ -74,16 +80,14 @@ fAbout(){ { ((doQuietly)) || ((wasShown_About)); } && return; wasShown_About=1;
 	fEcho_Clean "  • Run git automation script (e.g. commit and push)."
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "" ;:;}
+
 fSyntax(){  { ((doQuietly)) || ((wasShown_Syntax)); } && return; wasShown_Syntax=1;
 	fEcho_Clean ""
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "Arguments:"
 	fEcho_Clean "  --quiet"
 	fEcho_Clean "      [optional]: Be less verbose, and don't prompt user to continue."
-	fEcho_Clean "  --help"
-	fEcho_Clean "      [optional]: Shows copyright, about, and this syntax."
-	fEcho_Clean "  --version"
-	fEcho_Clean "      [optional]: Shows copyright and version."
+	fEcho_Clean "  --help, --version [or -h, -v]"
 	#           X-------------------------------------------------------------------------------X
 	fEcho_Clean "" ;:;}
 
@@ -91,20 +95,12 @@ fSyntax(){  { ((doQuietly)) || ((wasShown_Syntax)); } && return; wasShown_Syntax
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 fMain(){
 
-	## Generic constants
+	## Settings
+
+	## Generic constants and variables
 	local ogUSER="" ; fGetOgUserName ogUSER             ; readonly ogUSER
 	local ogHOME="" ; fGetOgUserHome ogHOME "${ogUSER}" ; readonly ogHOME
-
-	## Generic variables
-	local -i wasShown_Copyright=0; local -i wasShown_About=0; wasShown_Syntax=0
-
-	## Check for need to show help
-	{ ((atLeastOneArgRequired)) && [[ -z "${1:-}${2:-}${3:-}${4:-}" ]]; } && { fCopyright; fAbout; fSyntax; return 1; }
-	case " ${*,,} " in
-		*" -h "*|*" --help "*)                 fCopyright; fAbout; fSyntax; return 0; ;;
-		*" -v "*|*" --ver "*|*" --version "*)  fCopyright;                  return 0; ;;
-		*" -q "*|*" --quiet "*)                doQuiet=1;                             ;;
-	esac
+	local -i wasShown_Version=0  wasShown_Copyright=0  wasShown_About=0  wasShown_Syntax=0
 
 	## Validate dependencies
 	fMustBeInPath realpath
@@ -122,14 +118,6 @@ fMain(){
 	fResolvePath  filePath_ExecToTestAndInstall  "${filePath_ExecToTestAndInstall}"  ; readonly filePath_ExecToTestAndInstall
 	fResolvePath  filePath_TestExec              "${filePath_TestExec}"              ; readonly filePath_TestExec
 	fResolvePath  gitAutomationScript            "${gitAutomationScript}"            ; readonly gitAutomationScript
-
-	##DEBUG
-	#echo "dirPath_Base .....................: '${dirPath_Base}'"
-	#echo "dirPath_Source ...................: '${dirPath_Source}'"
-	#echo "filePath_ExecToTestAndInstall ....: '${filePath_ExecToTestAndInstall}'"
-	#echo "filePath_TestExec ................: '${filePath_TestExec}'"
-	#echo "gitAutomationScript ..............: '${gitAutomationScript}'"
-	#exit
 
 	## Validate
 	[[ -d "${meDir}"                ]]  ||  fThrowError "Path not found: '${meDir}'"
@@ -158,7 +146,8 @@ fMain(){
 	#### MAKEITSO
 	####
 
-	pushd "${dirPath_Base}" 1>/dev/null
+	cd "${dirPath_Base}"
+	pushd "${dirPath_Source}" 1>/dev/null
 
 	if ((isCompileProject)); then
 
@@ -210,10 +199,6 @@ fMain(){
 	## Git automation script (e.g. commit, push)
 	"${gitAutomationScript}"
 
-#	## Run fMain_Chained(), as sudo if necessary, with important variables [and/or fArgs_*] serialized.
-#	((doAsSudo))  &&  fChainToFunc  'fMain_Chained'  "$(declare -p  doQuietly  ogUSER  ogHOME)"
-
-	## Done; either fChainToFunc() -> fMain_Chained() returned, or this script run in a sudo subshell [running only fMain_Chained()] returned.
 	((! doQuietly)) && { fEcho "${meName}: Done."; fEcho; }
 :;}
 
@@ -236,6 +221,14 @@ fMain_Chained(){
 fParseArgs(){
 
 	## Look for stars "✶✶✶✶✶✶✶✶" for places to custom-modify unique instances of this function.
+
+	## Check for need to show help etc.
+	{ ((atLeastOneArgRequired)) && [[ -z "${1:-}${2:-}${3:-}${4:-}" ]]; } && { fCopyright; fAbout; fSyntax; return 1; }
+	case " ${*,,} " in
+		*" -h "*|*" --help "*|*" -help "*)                               fCopyright ; fAbout ; fSyntax ; exit 0 ;;
+		*" -a "*|*" --about "*|*" -about "*)                             fCopyright ; fAbout           ; exit 0 ;;
+		*" -v "*|*" --version "*|*" -version "*|*" --ver "|*" -ver "**)  fVersion ; doQuietly=1        ; exit 0 ;;
+	esac
 
 	## GENERIC (don't modify): Populate args array and string.
 	## Note: Args are 1-based index, but the resulting array of args at the end is a normal 0-based index.
@@ -285,10 +278,10 @@ fParseArgs(){
 
 			case "${tmpStr}" in
 
-			#	## ✶✶✶✶✶✶✶✶ PUT CUSTOM UNARY SWITCH TESTS AND PARENT BOOLEAN VARIABLE ASSIGNMENTS HERE
-			#	"unary-switch")  booleanVariable=1  ;;
+				## ✶✶✶✶✶✶✶✶ PUT CUSTOM UNARY SWITCH TESTS AND PARENT BOOLEAN VARIABLE ASSIGNMENTS HERE
+				"quiet")  doQuietly=1  ;;
 
-			#	## ✶✶✶✶✶✶✶✶ PUT TESTS FOR CUSTOM LONG-OPTION LOGIC THAT EXPECTS AN ARGUMENT TO FOLLOW, HERE
+				## ✶✶✶✶✶✶✶✶ PUT TESTS FOR CUSTOM LONG-OPTION LOGIC THAT EXPECTS AN ARGUMENT TO FOLLOW, HERE
 			#	"long-option-with-arg-to-follow") expectingSwitchParamForNextArg=1 ;;
 
 				## ¯\_(ツ)_/¯
@@ -302,7 +295,7 @@ fParseArgs(){
 				## Now we know to expecting an long-option argument
 				#fEcho_Clean "Debug: arg for long-option: '${lastSwitch}': '${currentArg}'"
 
-			#	## ✶✶✶✶✶✶✶✶ PUT CUSTOM LONG-OPTION ARGUMENT TESTS AND PARENT VARIABLE ASSIGNMENTS HERE
+				## ✶✶✶✶✶✶✶✶ PUT CUSTOM LONG-OPTION ARGUMENT TESTS AND PARENT VARIABLE ASSIGNMENTS HERE
 			#	case "${lastSwitch,,}" in
 			#		"long-option-with-arg-to-follow") someParentVariable="${currentArg}" ;;
 			#		*)                                fThrowError "Unkown option: '${lastSwitchAsPassed}', current parameter: '${currentArg}'." ;;  ## A redundant check.
@@ -329,7 +322,7 @@ fParseArgs(){
 	done
 	((expectingSwitchParamForNextArg)) && fThrowError "Never received a parameter for switch '--${lastSwitch}'."
 
-:;}  ## 'true' has to be the last thing or this function errors [the joys of the mysterious 'set -e'].
+:;}
 
 
 #••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
@@ -349,23 +342,36 @@ fCleanup(){
 #•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
 ## Generic functions
 fResolvePath(){
-	## First looks at specified raw path. Next, same path but relative to this script. Next, in $PATH for an executable. Next, in this script's path, + /lib, /include, then /includes.
+	##	Purpose:
+	##		- Resolves an argument to a canonical full path, while being careful to not be too broad as to resolve to something else with the same name.
+	##		- Resolution priority:
+	##			- Exactly as specified.
+	##			- "[this script's path]/lib/[specified name if given without a path]"
+	##			- "[this script's path]/include/[specified name if given without a path]"
+	##			- "[this script's path]/includes/[specified name if given without a path]"
+	##			- If specified a name without a path: Find in $PATH
+	##			- If doesn't have to exist, and still haven't found it, then just canonicalize original argument
 	local -n parentVarName_ResolvedPath_t4rej=${1:-}  ; shift || true  ## Parent variable to store fully resolved path in.
 	local    nameOrPath="${1:-}"                      ; shift || true  ## File or folder path (relative or absolute). If an executable file, can be just a name to search in $PATH, to fully resolve.
-	[[   -z "${nameOrPath}" ]]  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): No path specified to resolve.\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
-	local -r mePath_t4rfg="$(dirname "${BASH_SOURCE[0]}")"
-	local -i isNopathObject=0 ; [[ "${nameOrPath}" == "$(basename "${nameOrPath}")" ]] && isNopathObject=1 ; readonly isNopathObject
+	local -i mustExist=${1:-0}                        ; shift || true  ## 1 [default]: path must exist or error occurs. 0: Just rationalize paths, doesn't have to exist.
+	[[   -z "${nameOrPath}" ]]  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): No file or directory specified to resolve.\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	local -r mePath_t4rmy="$(dirname "${BASH_SOURCE[0]}")"
+	local -i isExeWithNoPath=0 ; [[ "${nameOrPath}" == "$(basename "${nameOrPath}")" ]] && isExeWithNoPath=1 ; readonly isExeWithNoPath
 	local    testPath="${nameOrPath}"
-	  [[ ! -e "${testPath}"   ]]                           &&  testPath="${mePath_t4rfg}/${nameOrPath}"
-	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="$(which "${nameOrPath}" 2>/dev/null || true)"
-	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rfg}/lib/${nameOrPath}"
-	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rfg}/include/${nameOrPath}"
-	{ [[ ! -e "${testPath}"   ]] && ((isNopathObject)); }  &&  testPath="${mePath_t4rfg}/includes/${nameOrPath}"
-	  [[ ! -e "${testPath}"   ]]                           &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔc].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
-	testPath="$(realpath -e "${testPath}" 2>/dev/null || true)"
+	{ [[ ! -e "${testPath}"   ]]                          ; }  &&  testPath="${mePath_t4rmy}/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/lib/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/include/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="${mePath_t4rmy}/includes/${nameOrPath}"
+	{ [[ ! -e "${testPath}"   ]] && ((isExeWithNoPath))   ; }  &&  testPath="$(which "${nameOrPath}" 2>/dev/null || true)"
+	{ [[ ! -e "${testPath}"   ]] && ((mustExist))         ; }  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔc].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	{ [[ ! -e "${testPath}"   ]] || [[ -z "${testPath}" ]]; }  &&  testPath="${nameOrPath}"  ## Revert to original definition
+	if ((mustExist)); then testPath="$(realpath -e "${testPath}" 2>/dev/null || true)"
+	else                   testPath="$(realpath -m "${testPath}" 2>/dev/null || true)"; fi
 	## Last check to fail on
-	{ [[ -n "${testPath}" ]] && [[ -e "${testPath}" ]]; } || { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔs].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
+	{ [[ -z "${testPath}" ]] || { [[ ! -e "${testPath}" ]] && ((mustExist)); }; }  &&  { echo -e "\nError in $(basename "${BASH_SOURCE[0]}")·${FUNCNAME[0]}(): Could not resolve path '${nameOrPath}' [£ǝŔs].\n"; fEcho_WasLastEchoBlank_Set 1; return 1; }
 	## Success
+	#echo "testPath: '${testPath}'"
+	#fPressAnyKeyToContinue
 	parentVarName_ResolvedPath_t4rej="${testPath}"
 }
 fGetOgUserName(){
@@ -570,6 +576,9 @@ if [[ -z "${serialDT+x}"     ]]; then
 	declare -r meDir="$(dirname "${mePath}")"
 	declare -r relaunch_Key_sudo="${meName}_relaunch_sudo_4KQDYluNbzLQHwMwsWxgdk"  ## This isn't for 'security' or uniqueness. It just needs to be an exceptionally unlikely user argument.
 fi
+
+## Make sure relative paths work
+cd "${meDir}"
 
 ## Pass control to either fMain, or chained function.
 if [[ "${1:-}" == "${relaunch_Key_sudo}" ]]; then
